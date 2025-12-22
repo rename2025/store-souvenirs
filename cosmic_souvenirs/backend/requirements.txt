@@ -1,0 +1,14 @@
+Django>=5.0
+django-redis==5.4.0
+redis>=4.5.0
+djangorestframework
+django-cors-headers
+django-filter
+psycopg2-binary
+dj-database-url
+celery
+django-celery-results
+django-celery-beat
+Pillow
+whitenoise
+gunicorn

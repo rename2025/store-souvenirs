@@ -168,7 +168,7 @@ async function toggleWishlist(button) {
                 '<i class="far fa-heart"></i>';
 
             showNotification(
-                data.in_wishlist ? 'Добавлено в избранное ❤️' : 'Удалено из избранного',
+                data.in_wishlist ? 'Добавлено в избранное ' : 'Удалено из избранного',
                 'success'
             );
         }

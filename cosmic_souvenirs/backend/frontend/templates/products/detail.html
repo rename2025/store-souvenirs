@@ -1,0 +1,277 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ product.name }} | Cosmic Souvenirs{% endblock %}
+
+{% block extra_css %}
+<style>
+.product-gallery img {
+    cursor: pointer;
+    transition: transform 0.3s;
+}
+.product-gallery img:hover {
+    transform: scale(1.05);
+}
+.rating-stars {
+    color: #ffc107;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container my-5">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{% url 'home' %}">Главная</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'catalog' %}">Каталог</a></li>
+            {% for category in product.categories.all %}
+            <li class="breadcrumb-item"><a href="/catalog/{{ category.slug }}/">{{ category.name }}</a></li>
+            {% endfor %}
+
+            <li class="breadcrumb-item active">{{ product.name }}</li>
+        </ol>
+    </nav>
+
+    <div class="row">
+        <!-- Галерея изображений -->
+        <div class="col-md-6">
+            <div class="product-gallery">
+                <div class="main-image mb-3">
+                    <img src="{{ product.main_image.image.url }}" class="img-fluid rounded"
+                         alt="{{ product.name }}" id="mainProductImage">
+                </div>
+                <div class="thumbnail-images d-flex gap-2">
+                    {% for image in product.images.all %}
+                    <img src="{{ image.image.url }}" class="img-thumbnail"
+                         width="80" alt="{{ image.alt_text }}"
+                         onclick="document.getElementById('mainProductImage').src = this.src">
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Информация о товаре -->
+        <div class="col-md-6">
+            <h1 class="h2">{{ product.name }}</h1>
+
+            <!-- Рейтинг -->
+            <div class="d-flex align-items-center mb-3">
+                <div class="rating-stars me-2">
+                    {% for i in "12345" %}
+                        {% if forloop.counter <= average_rating %}
+                            <i class="fas fa-star"></i>
+                        {% else %}
+                            <i class="far fa-star"></i>
+                        {% endif %}
+                    {% endfor %}
+                </div>
+                <span class="text-muted">({{ product.reviews.count }} отзывов)</span>
+            </div>
+
+
+            <!-- NEW: Average rating + Review button -->
+    <div class="mb-3 p-3 bg-light rounded">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                ⭐ <strong>{{ product.average_rating|floatformat:1|default:"—" }}</strong>
+                ({{ product.reviews.count }} отзывов)
+            </div>
+            {% if user.is_authenticated %}
+                <a href="/reviews/add/{{ product.id }}/" class="btn btn-outline-primary btn-sm">
+                    Оставить отзыв
+                </a>
+            {% else %}
+                <a href="{% url 'users:login' %}" class="btn btn-outline-secondary btn-sm">
+                    Войдите для отзыва
+                </a>
+            {% endif %}
+        </div>
+    </div>
+
+
+            <!-- Цена -->
+            <div class="mb-3">
+                {% if product.compare_price %}
+                <h3 class="text-primary">{{ product.price }} ₽</h3>
+                <del class="text-muted">{{ product.compare_price }} ₽</del>
+                <span class="badge bg-danger ms-2">-{{ product.get_discount_percentage }}%</span>
+                {% else %}
+                <h3 class="text-primary">{{ product.price }} ₽</h3>
+                {% endif %}
+            </div>
+
+            <!-- Наличие -->
+            <div class="mb-3">
+                {% if product.is_in_stock %}
+                <span class="badge bg-success">В наличии</span>
+                <small class="text-muted">Осталось: {{ product.stock_quantity }} шт.</small>
+                {% else %}
+                <span class="badge bg-warning">Под заказ</span>
+                {% endif %}
+            </div>
+
+            <!-- Атрибуты -->
+            {% if product.attributes.all %}
+            <div class="mb-3">
+                <h5>Характеристики:</h5>
+                <ul class="list-unstyled">
+                    {% for attr in product.attributes.all %}
+                    <li><strong>{{ attr.attribute.name }}:</strong> {{ attr.value }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+            {% endif %}
+
+            <!-- Добавление в корзину -->
+            <div class="mb-4">
+                <div class="row align-items-center">
+                    <div class="col-auto">
+                        <label for="quantity" class="form-label">Количество:</label>
+                    </div>
+                    <div class="col-auto">
+                        <input type="number" id="quantity" class="form-control"
+                               value="1" min="1" max="{{ product.stock_quantity }}"
+                               style="width: 80px;">
+                    </div>
+                    <div class="col">
+                        <button class="btn btn-primary btn-lg w-100 add-to-cart-btn"
+                                data-product-id="{{ product.id }}">
+                            <i class="fas fa-cart-plus me-2"></i>Добавить в корзину
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Дополнительная информация -->
+            <div class="border-top pt-3">
+                <div class="row text-center">
+                    <div class="col-4">
+                        <i class="fas fa-shipping-fast fa-2x text-muted mb-2"></i>
+                        <p class="small mb-0">Быстрая доставка</p>
+                    </div>
+                    <div class="col-4">
+                        <i class="fas fa-shield-alt fa-2x text-muted mb-2"></i>
+                        <p class="small mb-0">Гарантия качества</p>
+                    </div>
+                    <div class="col-4">
+                        <i class="fas fa-undo fa-2x text-muted mb-2"></i>
+                        <p class="small mb-0">Возврат 14 дней</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Описание товара -->
+    <div class="row mt-5">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <ul class="nav nav-tabs card-header-tabs">
+                        <li class="nav-item">
+                            <a class="nav-link active" href="#description" data-bs-toggle="tab">Описание</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="#specifications" data-bs-toggle="tab">Характеристики</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="#reviews" data-bs-toggle="tab">Отзывы</a>
+                        </li>
+                    </ul>
+                </div>
+                <div class="card-body">
+                    <div class="tab-content">
+                        <div class="tab-pane fade show active" id="description">
+                            {{ product.description|linebreaks }}
+                        </div>
+                        <div class="tab-pane fade" id="specifications">
+                            <!-- Детальные характеристики -->
+                        </div>
+                        <div class="tab-pane fade" id="reviews">
+                            <!-- Отзывы -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Связанные товары -->
+    {% if related_products %}
+    <div class="row mt-5">
+        <div class="col-12">
+            <h3 class="mb-4">С этим товаром покупают</h3>
+            <div class="row">
+                {% for product in related_products %}
+                <div class="col-md-3">
+                    {% include 'products/includes/product_card.html' %}
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const addToCartBtn = document.querySelector('.add-to-cart-btn');
+
+    addToCartBtn.addEventListener('click', function() {
+        const productId = this.dataset.productId;
+        const quantity = document.getElementById('quantity').value;
+
+        // ИСПРАВЛЕНО: Используем cart:add_to_cart вместо add_to_cart
+        fetch('{% url "cart:add_to_cart" %}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'X-CSRFToken': '{{ csrf_token }}',
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: 'product_id=' + productId + '&quantity=' + quantity
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Обновляем счетчик корзины
+                const cartBadge = document.querySelector('.badge.bg-danger');
+                if (cartBadge) {
+                    cartBadge.textContent = data.cart_items_count;
+                }
+
+                // Показываем уведомление
+                showNotification('Товар добавлен в корзину!', 'success');
+            } else {
+                showNotification(data.error || 'Ошибка при добавлении товара', 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showNotification('Произошла ошибка', 'error');
+        });
+    });
+
+    function showNotification(message, type) {
+        // Реализация показа уведомления
+        const alertClass = type === 'success' ? 'alert-success' : 'alert-danger';
+        const alertDiv = document.createElement('div');
+        alertDiv.className = `alert ${alertClass} alert-dismissible fade show position-fixed`;
+        alertDiv.style.top = '100px';
+        alertDiv.style.right = '20px';
+        alertDiv.style.zIndex = '1050';
+        alertDiv.innerHTML = `
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        `;
+        document.body.appendChild(alertDiv);
+
+        setTimeout(() => {
+            alertDiv.remove();
+        }, 3000);
+    }
+});
+</script>
+{% endblock %}

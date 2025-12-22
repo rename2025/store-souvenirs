@@ -1,0 +1,212 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Cosmic Souvenirs | Главная{% endblock %}
+
+{% block content %}
+<!-- Герой секция -->
+<section class="hero-section">
+    <div class="container text-center position-relative">
+        <h1 class="display-3 fw-bold mb-4 floating">Космические сувениры</h1>
+        <p class="lead mb-5">Уникальные коллекционные предметы для настоящих ценителей космоса</p>
+        <a href="{% url 'catalog' %}" class="btn btn-light btn-lg px-4 py-2">
+            <i class="fas fa-shopping-bag me-2"></i> В каталог
+        </a>
+    </div>
+</section>
+
+<!-- Статистика -->
+<section class="container">
+    <div class="row">
+        <div class="col-md-3">
+            <div class="stats-card primary">
+                <h5><i class="fas fa-users me-2"></i> Клиенты</h5>
+                <p class="display-6">{{ stats.customers }}</p>
+                <span class="text-white-50">+{{ stats.customers_growth }}% за месяц</span>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stats-card success">
+                <h5><i class="fas fa-box-open me-2"></i> Товары</h5>
+                <p class="display-6">{{ stats.products }}</p>
+                <span class="text-white-50">+{{ stats.new_products }} новых</span>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stats-card warning">
+                <h5><i class="fas fa-shipping-fast me-2"></i> Доставка</h5>
+                <p class="display-6">{{ stats.delivery_time }}</p>
+                <span class="text-dark-50">Среднее время</span>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stats-card danger">
+                <h5><i class="fas fa-star me-2"></i> Рейтинг</h5>
+                <p class="display-6">{{ stats.rating }}/5</p>
+                <span class="text-white-50">{{ stats.satisfaction }}% довольных</span>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Популярные товары -->
+<section class="container my-5">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="fw-bold">Популярные товары</h2>
+        <a href="{% url 'catalog' %}?sort=popular" class="btn btn-outline-dark">Смотреть все</a>
+    </div>
+
+    <div class="row g-4">
+        {% for product in popular_products %}
+        <div class="col-md-3">
+            <div class="product-card card h-100">
+                <img src="{{ product.image.url }}" class="card-img-top product-img" alt="{{ product.name }}">
+                <div class="card-body">
+                    {% if product.is_bestseller %}
+                    <span class="badge badge-custom mb-2">Хит</span>
+                    {% endif %}
+                    {% if product.is_new %}
+                    <span class="badge bg-success mb-2">Новинка</span>
+                    {% endif %}
+                    <h5 class="card-title">{{ product.name }}</h5>
+                    <p class="card-text">{{ product.short_description }}</p>
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0 text-primary">{{ product.price }} ₽</h5>
+                        <button class="btn btn-sm btn-custom add-to-cart" data-product-id="{{ product.id }}">
+                            <i class="fas fa-cart-plus"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</section>
+
+<!-- Новинки -->
+<section class="container my-5 py-5 bg-light rounded-3">
+    <div class="text-center mb-5">
+        <h2 class="fw-bold">Новые поступления</h2>
+        <p class="text-muted">Свежие добавления в нашу коллекцию</p>
+    </div>
+
+    <div class="row g-4">
+        {% for product in new_products %}
+        <div class="col-md-3">
+            <div class="product-card card h-100">
+                <img src="{{ product.image.url }}" class="card-img-top product-img" alt="{{ product.name }}">
+                <div class="card-body">
+                    <span class="badge bg-success mb-2">Новинка</span>
+                    <h5 class="card-title">{{ product.name }}</h5>
+                    <p class="card-text">{{ product.short_description }}</p>
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0 text-primary">{{ product.price }} ₽</h5>
+                        <button class="btn btn-sm btn-custom add-to-cart" data-product-id="{{ product.id }}">
+                            <i class="fas fa-cart-plus"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</section>
+
+<!-- Отзывы -->
+<section class="container my-5">
+    <h2 class="fw-bold text-center mb-5">Отзывы наших клиентов</h2>
+
+    <div class="row">
+        {% for review in reviews %}
+        <div class="col-md-4">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <div class="d-flex mb-3">
+                        <img src="{{ review.user.profile.avatar.url }}" class="rounded-circle me-3" width="50" height="50" alt="{{ review.user.username }}">
+                        <div>
+                            <h6 class="mb-0">{{ review.user.get_full_name }}</h6>
+                            <div class="text-warning">
+                                {% for i in "12345" %}
+                                    {% if forloop.counter <= review.rating %}
+                                        <i class="fas fa-star"></i>
+                                    {% else %}
+                                        <i class="far fa-star"></i>
+                                    {% endif %}
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+                    <p class="card-text">{{ review.text }}</p>
+                    <small class="text-muted">О товаре: {{ review.product.name }}</small>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</section>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Добавление товара в корзину
+document.addEventListener('DOMContentLoaded', function() {
+    const addToCartButtons = document.querySelectorAll('.add-to-cart');
+
+    addToCartButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            const productId = this.dataset.productId;
+
+            fetch('{% url "cart:add_to_cart" %}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'X-CSRFToken': '{{ csrf_token }}',
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: 'product_id=' + productId
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Обновляем счетчик корзины
+                    const cartBadge = document.querySelector('.badge.bg-danger');
+                    if (cartBadge) {
+                        cartBadge.textContent = data.cart_items_count;
+                    }
+
+
+                    showNotification('Товар добавлен в корзину!', 'success');
+                } else {
+                    showNotification('Ошибка при добавлении товара', 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showNotification('Произошла ошибка', 'error');
+            });
+        });
+    });
+
+    function showNotification(message, type) {
+        // Реализация показа уведомления
+        const alertClass = type === 'success' ? 'alert-success' : 'alert-danger';
+        const alertDiv = document.createElement('div');
+        alertDiv.className = `alert ${alertClass} alert-dismissible fade show position-fixed`;
+        alertDiv.style.top = '100px';
+        alertDiv.style.right = '20px';
+        alertDiv.style.zIndex = '1050';
+        alertDiv.innerHTML = `
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        `;
+        document.body.appendChild(alertDiv);
+
+        setTimeout(() => {
+            alertDiv.remove();
+        }, 3000);
+    }
+
+});
+</script>
+
+{% endblock %}

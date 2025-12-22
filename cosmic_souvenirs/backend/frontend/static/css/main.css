@@ -1,0 +1,148 @@
+:root {
+    --primary: #6c5ce7;
+    --secondary: #a29bfe;
+    --dark: #2d3436;
+    --light: #f5f6fa;
+    --accent: #fd79a8;
+    --success: #00b894;
+    --warning: #fdcb6e;
+    --danger: #e17055;
+}
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: var(--light);
+    color: var(--dark);
+    padding-top: 76px;
+}
+
+.navbar-brand {
+    font-weight: 800;
+    font-size: 1.8rem;
+    letter-spacing: 1px;
+}
+
+.hero-section {
+    background: linear-gradient(135deg, var(--primary), var(--secondary));
+    color: white;
+    padding: 5rem 0;
+    margin-bottom: 3rem;
+    border-radius: 0 0 20px 20px;
+    position: relative;
+    overflow: hidden;
+}
+
+/* ВАЖНО: правильный путь к существующему файлу */
+.hero-section::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: url('../images/stars-bg.png') repeat;
+    opacity: 0.1;
+}
+
+/* Остальной CSS оставляем как есть */
+.product-card {
+    transition: all 0.3s ease;
+    border: none;
+    border-radius: 15px;
+    overflow: hidden;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+    height: 100%;
+}
+
+.product-card:hover {
+    transform: translateY(-10px);
+    box-shadow: 0 15px 30px rgba(0,0,0,0.2);
+}
+
+.product-img {
+    height: 200px;
+    object-fit: cover;
+    background: #f0f0f0;
+}
+
+.badge-custom {
+    background: var(--accent);
+    color: white;
+}
+
+.btn-custom {
+    background: var(--primary);
+    color: white;
+    border: none;
+    padding: 10px 25px;
+    border-radius: 50px;
+    font-weight: 600;
+    transition: all 0.3s;
+}
+
+.btn-custom:hover {
+    background: var(--dark);
+    transform: translateY(-2px);
+    color: white;
+}
+
+.stats-card {
+    border-radius: 15px;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+    color: white;
+    border: none;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+}
+
+.stats-card.primary {
+    background: linear-gradient(45deg, var(--primary), #8c7ae6);
+}
+
+.stats-card.success {
+    background: linear-gradient(45deg, var(--success), #55efc4);
+}
+
+.stats-card.warning {
+    background: linear-gradient(45deg, var(--warning), #ffeaa7);
+    color: var(--dark);
+}
+
+.stats-card.danger {
+    background: linear-gradient(45deg, var(--danger), #fab1a0);
+}
+
+@keyframes float {
+    0%, 100% { transform: translateY(0px); }
+    50% { transform: translateY(-10px); }
+}
+
+.floating {
+    animation: float 3s ease-in-out infinite;
+}
+
+@media (max-width: 768px) {
+    .hero-section {
+        padding: 3rem 0;
+    }
+    .hero-section h1 {
+        font-size: 2rem;
+    }
+    .stats-card {
+        margin-bottom: 1rem;
+    }
+}
+
+.loading {
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+    border: 3px solid #ffffff;
+    border-radius: 50%;
+    border-top-color: transparent;
+    animation: spin 1s ease-in-out infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
