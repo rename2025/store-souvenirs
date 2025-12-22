@@ -1,0 +1,33 @@
+# Environment
+.env
+.env.local
+.env.production
+
+# Docker
+.dockerignore
+docker-compose.override.yml
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.env
+.venv
+venv/
+ENV/
+
+# Django
+*.log
+local_settings.py
+db.sqlite3
+media/
+staticfiles/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~

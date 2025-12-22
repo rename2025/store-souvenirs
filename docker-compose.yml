@@ -1,0 +1,80 @@
+services:
+  db:
+    image: postgres:17-alpine
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    environment:
+      POSTGRES_DB: cosmic_user
+      POSTGRES_USER: cosmic_user
+      POSTGRES_PASSWORD: 123ewq123ewq
+      POSTGRES_INITDB_ARGS: '--encoding=UTF8'
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U cosmic_user -d cosmic_user"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  web:
+    build: ./cosmic_souvenirs/backend
+    volumes:
+      - ./cosmic_souvenirs/backend:/app
+      - static_volume:/app/staticfiles
+      - media_volume:/app/media
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    env_file:
+      - .env
+    command: >
+      sh -c "
+      python manage.py migrate &&
+      python manage.py collectstatic --noinput &&
+      gunicorn cosmic_souvenirs.wsgi:application --bind 0.0.0.0:8000 --workers 3
+      "
+
+  celery:
+    build: ./cosmic_souvenirs/backend
+    volumes:
+      - ./cosmic_souvenirs/backend:/app
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    env_file:
+      - .env
+    command: celery -A cosmic_souvenirs worker --loglevel=info
+
+  celery-beat:
+    build: ./cosmic_souvenirs/backend
+    volumes:
+      - ./cosmic_souvenirs/backend:/app
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    env_file:
+      - .env
+    command: celery -A cosmic_souvenirs beat --loglevel=info
+
+volumes:
+  postgres_data:
+  redis_data:
+  static_volume:
+  media_volume:
