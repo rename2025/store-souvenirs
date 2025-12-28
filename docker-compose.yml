@@ -1,3 +1,4 @@
+
 services:
   db:
     image: postgres:17-alpine
@@ -31,8 +32,8 @@ services:
       - ./cosmic_souvenirs/backend:/app
       - static_volume:/app/staticfiles
       - media_volume:/app/media
-    ports:
-      - "8000:8000"
+    #ports:
+     # - "8000:8000"
     depends_on:
       db:
         condition: service_healthy
@@ -44,8 +45,9 @@ services:
       sh -c "
       python manage.py migrate &&
       python manage.py collectstatic --noinput &&
-      gunicorn cosmic_souvenirs.wsgi:application --bind 0.0.0.0:8000 --workers 3
-      "
+      gunicorn cosmic_souvenirs.wsgi:application --bind 0.0.0.0:8000 --workers 3 "
+
+    
 
   celery:
     build: ./cosmic_souvenirs/backend
@@ -72,6 +74,17 @@ services:
     env_file:
       - .env
     command: celery -A cosmic_souvenirs beat --loglevel=info
+
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf
+      - static_volume:/app/staticfiles:ro
+      - media_volume:/app/media:ro
+    depends_on:
+      - web
 
 volumes:
   postgres_data:
