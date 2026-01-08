@@ -73,6 +73,20 @@ services:
       - .env
     command: celery -A cosmic_souvenirs beat --loglevel=info
 
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf
+      - ./conf.d:/etc/nginx/conf.d
+      - static_volume:/app/staticfiles/
+      - media_volume:/app/media/
+    depends_on:
+      - web
+
+
 volumes:
   postgres_data:
   redis_data:
