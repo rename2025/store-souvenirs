@@ -1,5 +1,6 @@
 from django.db import models
 from django.conf import settings
+from django.core.validators import MinValueValidator
 
 class Order(models.Model):
     ORDER_STATUS_CHOICES = [
@@ -33,7 +34,8 @@ class Order(models.Model):
         blank=True,
         related_name='orders'
     )
-    order_number = models.CharField(max_length=20, unique=True)
+    session_key = models.CharField(max_length=40, null=True, blank=True)  # ← ДОБАВЛЕНО для анонимных заказов
+    order_number = models.CharField(max_length=20, unique=True, blank=True)
 
     # Статусы
     status = models.CharField(max_length=20, choices=ORDER_STATUS_CHOICES, default='pending')
@@ -42,11 +44,11 @@ class Order(models.Model):
 
     # Платежная информация
     yookassa_payment_id = models.CharField(max_length=100, blank=True)
-    total_amount = models.DecimalField(max_digits=12, decimal_places=2)
+    total_amount = models.DecimalField(max_digits=12, decimal_places=2, validators=[MinValueValidator(0)])
     tax_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     shipping_cost = models.DecimalField(max_digits=8, decimal_places=2, default=0)
 
-    # Информация о клиенте
+    # Информация о клиенте (из OrderForm)
     customer_email = models.EmailField()
     customer_phone = models.CharField(max_length=20)
     customer_first_name = models.CharField(max_length=50)
@@ -79,7 +81,8 @@ class Order(models.Model):
 
     def generate_order_number(self):
         import time
-        return f"CS{int(time.time())}{self.user.id if self.user else 0}"
+        user_id = self.user.id if self.user else 0
+        return f"CS{int(time.time())}{user_id:04d}"
 
     @property
     def subtotal(self):
@@ -95,12 +98,11 @@ class Order(models.Model):
 
 class OrderItem(models.Model):
     order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name='items')
-    # ИЗМЕНИТЬ ТОЛЬКО ЭТУ СТРОКУ (строка 59):
-    product = models.ForeignKey('products.Product', on_delete=models.PROTECT)  # ← Добавить кавычки 'products.Product'
+    product = models.ForeignKey('products.Product', on_delete=models.PROTECT)  # ← ИСПРАВЛЕНО
     product_name = models.CharField(max_length=200)
-    product_sku = models.CharField(max_length=50)
+    product_sku = models.CharField(max_length=50, blank=True)
     unit_price = models.DecimalField(max_digits=10, decimal_places=2)
-    quantity = models.PositiveIntegerField()
+    quantity = models.PositiveIntegerField(validators=[MinValueValidator(1)])
 
     def __str__(self):
         return f"{self.quantity} x {self.product_name}"
@@ -108,6 +110,11 @@ class OrderItem(models.Model):
     @property
     def total_price(self):
         return self.unit_price * self.quantity
+
+    @property
+    def get_cost(self):
+        """Для совместимости с views"""
+        return self.total_price
 
 
 class ShippingMethod(models.Model):
