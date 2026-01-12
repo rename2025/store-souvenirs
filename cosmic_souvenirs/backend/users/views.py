@@ -50,7 +50,7 @@ def user_login(request):
 
 def user_logout(request):
     logout(request)
-    return redirect('products:home')
+    return redirect('/') #'products:home'
 
 
 def profile(request):

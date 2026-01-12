@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html>
+<head><title>Оформление заказа</title></head>
+<body>
+<h2>Оформление заказа</h2>
+
+<h3>Контактные данные</h3>
+<form method="post">
+    {% csrf_token %}
+    <input type="text" name="first_name" placeholder="Имя" required><br>
+    <input type="text" name="last_name" placeholder="Фамилия" required><br>
+    <input type="email" name="email" placeholder="Email" required><br>
+    <input type="tel" name="phone" placeholder="Телефон" required><br>
+    <textarea name="address" placeholder="Адрес" required></textarea><br>
+
+    <h3>Ваш заказ</h3>
+    {% if cart_items %}
+        <table>
+            <tr><th>Товар</th><th>Цена</th><th>Кол-во</th><th>Сумма</th></tr>
+            {% for item in cart_items %}
+            <tr>
+                <td>{{ item.name }}</td>
+                <td>{{ item.price }} ₽</td>
+                <td>{{ item.quantity }}</td>
+                <td>{{ item.total }} ₽</td>
+            </tr>
+            {% endfor %}
+        </table>
+        <h3>Итого: {{ total }} ₽</h3>
+    {% else %}
+        <p style="color:red;">Корзина пуста</p>
+    {% endif %}
+    <button type="submit">Оформить заказ</button>
+</form>
+</body>
+</html>

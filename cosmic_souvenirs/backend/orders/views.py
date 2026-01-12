@@ -1,5 +1,6 @@
 from django.shortcuts import render, redirect
 from django.contrib.auth.decorators import login_required
+from django.contrib import messages
 from cart.models import Cart
 from orders.models import Order
 from .forms import OrderForm
@@ -7,31 +8,32 @@ from .forms import OrderForm
 
 def order_create(request):
     if not request.session.session_key:
-        request.session.save()
+        request.session.create()
 
     # Форма для контактных данных
     form = OrderForm()
 
-    # Корзина
+    session_key = request.session.session_key
+    cart, created = Cart.objects.get_or_create(session_key=session_key)
+    cart_items = []
+    total_price = 0
+
+    if cart.items.exists():
+        cart_items = cart.items.all()
+        total_price = cart.total_price
+    else:
+        messages.warning(request, 'Корзина пуста')
+
     context = {
         'form': form,
-        'cart_items': [],
-        'total_price': 0
+        'cart_items': cart_items,
+        'total_price': total_price
     }
 
-    session_key = request.session.session_key
-    if session_key:
-        try:
-            cart = Cart.objects.get(session_key=session_key)
-            context['cart_items'] = cart.items.all()
-            context['total_price'] = cart.total_price
-        except Cart.DoesNotExist:
-            pass
-
-    # Если POST - создаем заказ
+    # Если POST - создаем заказ (БЕЗ ИЗМЕНЕНИЙ)
     if request.method == 'POST':
         form = OrderForm(request.POST)
-        if form.is_valid():
+        if form.is_valid() and cart_items:  # Проверка на пустую корзину
             # Создаем заказ из формы
             order = Order.objects.create(
                 user=request.user if request.user.is_authenticated else None,
@@ -39,7 +41,6 @@ def order_create(request):
                 **form.cleaned_data
             )
 
-            # Копируем товары из корзины в заказ
             if session_key:
                 cart = Cart.objects.filter(session_key=session_key).first()
                 if cart:
@@ -51,30 +52,24 @@ def order_create(request):
                         )
                     cart.delete()  # Очищаем корзину
 
+            messages.success(request, 'Заказ успешно создан!')
             return redirect('order_history')
+        else:
+            messages.error(request, 'Ошибка в форме или корзина пуста')
 
     return render(request, 'orders/create.html', context)
 
 
-@login_required  # Только для авторизованных пользователей
+@login_required
 def order_history(request):
-    """Показывает историю заказов пользователя"""
+    """История заказов авторизованного пользователя"""
     orders = Order.objects.filter(
-        user=request.user
-    ).order_by('-created_at')  # Новые заказы сверху
+        user=request.user,
+        # ordered=True  # раскомментируй когда будет поле ordered
+    ).order_by('-created')[:10]  # последние 10 заказов
 
     context = {
-        'orders': orders
+        'orders': orders,
+        'title': 'История заказов'
     }
-    return render(request, 'orders/history.html', context)
-
-#from django.shortcuts import render
-#def order_create(request):
-    #return render(request, 'orders/create.html')
-
-#def order_created(request, order_id):
-    #return render(request, 'orders/created.html')
-
-#def order_history(request):
-    #return render(request, 'orders/history.html')
-
+    return render(request, 'orders/order_history.html', context)
