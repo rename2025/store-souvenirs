@@ -1,56 +1,75 @@
 from django.shortcuts import render, redirect
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
-from cart.models import Cart
 from orders.models import Order
 from .forms import OrderForm
+from cart.views import _get_cart
 
 
 def order_create(request):
-    if not request.session.session_key:
-        request.session.create()
+    # ЧИТАЕМ КОРЗИНУ ИЗ СЕССИИ (как в cart/views.py)
+    cart = _get_cart(request)
 
-    # Форма для контактных данных
-    form = OrderForm()
-
-    session_key = request.session.session_key
-    cart, created = Cart.objects.get_or_create(session_key=session_key)
+    # Формируем cart_items ТОЧНО как в cart_detail
     cart_items = []
     total_price = 0
 
-    if cart.items.exists():
-        cart_items = cart.items.all()
-        total_price = cart.total_price
-    else:
+    for product_id_str, quantity in cart.items():
+        try:
+            product_id = int(product_id_str)
+            from products.models import Product  # импортируем здесь
+            product = Product.objects.get(id=product_id, is_active=True)
+            item_total = product.price * quantity
+            total_price += item_total
+
+            cart_items.append({
+                'product': product,
+                'quantity': quantity,
+                'total': item_total
+            })
+        except (ValueError, Product.DoesNotExist):
+            continue
+
+    # Если корзина пуста
+    if not cart_items:
         messages.warning(request, 'Корзина пуста')
 
+    form = OrderForm()
     context = {
         'form': form,
         'cart_items': cart_items,
         'total_price': total_price
     }
 
-    # Если POST - создаем заказ (БЕЗ ИЗМЕНЕНИЙ)
+    # POST - создаем заказ ИЗ СЕССИИ (исправлено!)
     if request.method == 'POST':
         form = OrderForm(request.POST)
-        if form.is_valid() and cart_items:  # Проверка на пустую корзину
-            # Создаем заказ из формы
+        if form.is_valid() and cart_items:  # проверяем cart_items из сессии
+            session_key = request.session.session_key
+
+            # Создаем заказ
             order = Order.objects.create(
                 user=request.user if request.user.is_authenticated else None,
                 session_key=session_key,
                 **form.cleaned_data
             )
 
-            if session_key:
-                cart = Cart.objects.filter(session_key=session_key).first()
-                if cart:
-                    for item in cart.items.all():
-                        order.items.create(
-                            product=item.product,
-                            price=item.price,
-                            quantity=item.quantity
-                        )
-                    cart.delete()  # Очищаем корзину
+            # Копируем товары ИЗ СЕССИИ в заказ
+            for product_id_str, quantity in cart.items():
+                try:
+                    product_id = int(product_id_str)
+                    product = Product.objects.get(id=product_id, is_active=True)
+                    order.items.create(
+                        product=product,
+                        price=product.price,
+                        quantity=quantity
+                    )
+                except (ValueError, Product.DoesNotExist):
+                    continue
+
+            # Очищаем корзину в сессии
+            request.session['cart'] = {}
+            request.session.modified = True
 
             messages.success(request, 'Заказ успешно создан!')
             return redirect('order_history')
@@ -65,8 +84,7 @@ def order_history(request):
     """История заказов авторизованного пользователя"""
     orders = Order.objects.filter(
         user=request.user,
-        # ordered=True  # раскомментируй когда будет поле ordered
-    ).order_by('-created')[:10]  # последние 10 заказов
+    ).order_by('-created')[:10]
 
     context = {
         'orders': orders,
