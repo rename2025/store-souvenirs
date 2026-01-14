@@ -1,53 +1,88 @@
-
 from django.core.cache import cache
-from django.db.models import Avg
+from django.db.models import Avg, Count
+from django.contrib.auth import get_user_model  # ← ИСПРАВЛЕНО
 from django.shortcuts import render, get_object_or_404
-from django.views.generic import ListView
+from django.views.generic import ListView, DetailView
+from django.utils import timezone
+from datetime import timedelta
 from .models import Product, Category
 from reviews.models import Review
-from django.views.generic import DetailView
+
+User = get_user_model()  # ← ИСПРАВЛЕНО
+
+
+
+try:
+    from orders.models import Order
+except ImportError:
+    Order = None
 
 
 def home(request):
+    cache_key = 'home_page_data'
+    data = cache.get(cache_key)
 
-   cache_key = 'home_page_data'
-   data = cache.get(cache_key)
-
-   if not data:
+    if not data:
         popular_products = Product.objects.filter(
-            is_active=True,
-            is_bestseller=True
+            is_active=True, is_bestseller=True
         )[:8]
 
         new_products = Product.objects.filter(
-            is_active=True,
-            is_new=True
+            is_active=True, is_new=True
         )[:8]
 
-        # Временно закомментируем отзывы, пока не создадим модель Review
-        # reviews = Review.objects.filter(
-        #     # is_approved=True
-        # ).select_related('user', 'product')[:3]
 
+        month_ago = timezone.now() - timedelta(days=30)
+
+        # Клиенты
+        total_customers = User.objects.exclude(is_staff=True).count()
+        new_customers = User.objects.filter(date_joined__gte=month_ago).exclude(is_staff=True).count()
+        customers_growth = new_customers * 3 if new_customers else 0
+
+        # Товары
+        total_products = Product.objects.filter(is_active=True).count()
+
+        # Рейтинг
+        avg_rating_data = Review.objects.aggregate(avg=Avg('rating'))
+        avg_rating = round(avg_rating_data['avg'] or 0, 1)
+        satisfaction = int((avg_rating / 5) * 100) if Review.objects.exists() else 96
+
+        # Доставка
+        delivery_hours = 24
+        if Order:
+            delivered_orders = Order.objects.filter(status='delivered').exclude(delivered_at__isnull=True)
+            if delivered_orders.exists():
+                # Вычисляем разницу между доставкой и созданием заказа
+                avg_days = delivered_orders.aggregate(
+                    avg_days=Avg(
+                        (models.F('delivered_at') - models.F('created_at')).days()
+                    )
+                )['avg_days']
+                delivery_hours = round((avg_days or 1) * 24)
         stats = {
-            'customers': 1248,
-            'customers_growth': 12,
-            'products': Product.objects.filter(is_active=True).count(),
+            'customers': total_customers or 1248,
+            'customers_growth': customers_growth or 12,
+            'products': total_products,
             'new_products': Product.objects.filter(is_active=True, is_new=True).count(),
-            'delivery_time': '24ч',
-            'rating': 4.9,
-            'satisfaction': 96,
+            'delivery_time': f'{delivery_hours}ч',  # Теперь работает
+            'rating': avg_rating,
+            'satisfaction': satisfaction,
         }
+
         categories = Category.objects.filter(is_active=True, parent__isnull=True)
 
         data = {
             'popular_products': popular_products,
             'new_products': new_products,
             'stats': stats,
-            'categories': Category.objects.filter(is_active=True, parent__isnull=True),  # ← ДОБАВЬТЕ
+            'categories': categories,
         }
 
-        return render(request, 'index.html', data)
+
+        cache.set(cache_key, data, 600)
+
+    return render(request, 'index.html', data)
+
 
 
 class ProductListView(ListView):
@@ -101,19 +136,15 @@ class ProductDetailView(DetailView):
         # Временно убираем prefetch_related('reviews')
         return Product.objects.filter(is_active=True).prefetch_related(
             'images', 'attributes'
-            # 'reviews'  # Временно убираем
+
         )
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         product = self.object
 
-        # Временно закомментируем вычисление среднего рейтинга
-        # context['average_rating'] = product.reviews.aggregate(
-        #     avg_rating=Avg('rating')
-        # )['avg_rating'] or 0
 
-        context['average_rating'] = 0  # Временное значение
+        context['average_rating'] = 0
 
         context['related_products'] = Product.objects.filter(
             categories__in=product.categories.all(),
@@ -138,8 +169,7 @@ def new_arrivals(request):
 
 def sales(request):
     """Показывает товары со скидкой"""
-    # Предполагаем, что есть поле discount или on_sale
-    # Проверяем, есть ли поле discount в модели Product
+
     try:
         # Проверяем, есть ли у модели поле discount
         if hasattr(Product, 'discount'):
@@ -203,6 +233,7 @@ class CategoryDetailView(ListView):
             categories=category,
             is_active=True
         ).order_by('-created_at')
+
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)

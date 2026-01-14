@@ -1,56 +1,59 @@
 from django.shortcuts import render, redirect
 from django.contrib.auth import login, logout, authenticate, get_user_model
 from django.contrib.auth.forms import AuthenticationForm
+from django.contrib.auth.models import User
+from django import forms
 
 User = get_user_model()
 
 
+from django.contrib.auth.forms import UserCreationForm
+
+
+class RegisterUserForm(UserCreationForm):
+    first_name = forms.CharField(max_length=50, label='Имя', required=False)
+    last_name = forms.CharField(max_length=50, label='Фамилия', required=False)
+    email = forms.EmailField(label='Email', required=True)
+
+    class Meta:
+        model = User
+        fields = ['username', 'first_name', 'last_name', 'email', 'password1', 'password2']
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['username'].label = 'Имя пользователя'
+
+
 def register(request):
     if request.method == 'POST':
-        username = request.POST.get('username')
-        password1 = request.POST.get('password1')
-        password2 = request.POST.get('password2')
-
-        errors = []
-
-        if password1 != password2:
-            errors.append('Пароли не совпадают')
-
-        if User.objects.filter(username=username).exists():
-            errors.append('Пользователь с таким именем уже существует')
-
-        if len(password1) < 8:
-            errors.append('Пароль должен быть не менее 8 символов')
-
-        if errors:
-            return render(request, 'users/register.html', {'errors': errors})
-
-        user = User.objects.create_user(username=username, password=password1)
-        login(request, user)
-        return redirect('products:home')
-
-    return render(request, 'users/register.html')
-
-
-def user_login(request):
-    if request.method == 'POST':
-        username = request.POST.get('username')
-        password = request.POST.get('password')
-
-        user = authenticate(request, username=username, password=password)
-
-        if user is not None:
+        form = RegisterUserForm(request.POST)  # UserCreationForm уже имеет password1/password2
+        if form.is_valid():
+            user = form.save()
             login(request, user)
             return redirect('products:home')
-        else:
-            return render(request, 'users/login.html', {'error': 'Неверный логин или пароль'})
+    else:
+        form = RegisterUserForm()
 
-    return render(request, 'users/login.html')
+    return render(request, 'users/register.html', {'form': form})
+
+
+# Логин с AuthenticationForm
+def user_login(request):
+    if request.method == 'POST':
+        form = AuthenticationForm(request, data=request.POST)
+        if form.is_valid():
+            user = form.get_user()
+            login(request, user)
+            return redirect('products:home')
+    else:
+        form = AuthenticationForm()
+
+    return render(request, 'users/login.html', {'form': form, 'error': form.errors})
 
 
 def user_logout(request):
     logout(request)
-    return redirect('/') #'products:home'
+    return redirect('products:home')
 
 
 def profile(request):

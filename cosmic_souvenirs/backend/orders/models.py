@@ -54,6 +54,8 @@ class Order(models.Model):
     customer_first_name = models.CharField(max_length=50)
     customer_last_name = models.CharField(max_length=50)
 
+    delivery_days = models.PositiveIntegerField(null=True, blank=True)
+
     # Адрес доставки
     shipping_address = models.JSONField()
 

@@ -9,7 +9,8 @@ urlpatterns = [
     path('admin/', admin.site.urls),
 
     # Главная страница (через products)
-    path('', include('products.urls')),
+    path('', include('products.urls', namespace='products')),
+    #path('', include('products.urls')),
 
     # Аутентификация (Django built-in)
     path('accounts/', include('django.contrib.auth.urls')),
@@ -21,10 +22,10 @@ urlpatterns = [
     path('cart/', include('cart.urls')),
 
     # Заказы
-    path('orders/', include('orders.urls')),
+    path('orders/', include('orders.urls', namespace='orders')),
 
-    # ДОБАВЛЕНО: Оформление заказа (КРИТИЧНО!)
-    path('checkout/', include('orders.urls')),  # или создайте отдельный app checkout
+    # Оформление заказа
+    path('checkout/', include('orders.urls', namespace='checkout')),
 
     # Статические страницы
     path('about/', TemplateView.as_view(template_name='pages/about.html'), name='about'),

@@ -11,31 +11,28 @@
                     <h3 class="text-center">Регистрация</h3>
                 </div>
                 <div class="card-body">
-                    {% if errors %}
-        <div class="alert alert-danger">
-            {% for error in errors %}
-                <p class="mb-0">{{ error }}</p>
-            {% endfor %}
-        </div>
-    {% endif %}
+                    <!-- Обработка ошибок формы Django -->
+                    {% if form.errors %}
+                        <div class="alert alert-danger">
+                            {% for field, errors in form.errors.items %}
+                                {% for error in errors %}
+                                    <p class="mb-0">{{ error }}</p>
+                                {% endfor %}
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+
                     <form method="post" autocomplete="off">
                         {% csrf_token %}
-                        <div class="mb-3">
-                            <label for="username" class="form-label">Имя пользователя</label>
-                            <input type="text" class="form-control" id="username" name="username" autocomplete="new-username" required>
-                        </div>
-                        <div class="mb-3">
-                            <label for="password1" class="form-label">Пароль</label>
-                            <input type="password" class="form-control" id="password1" name="password1" autocomplete="new-password" required>
-                        </div>
-                        <div class="mb-3">
-                            <label for="password2" class="form-label">Подтверждение пароля</label>
-                            <input type="password" class="form-control" id="password2" name="password2" autocomplete="new-password" required>
-                        </div>
-                        <button type="submit" class="btn btn-primary w-100">Зарегистрироваться</button>
+
+                        <!-- Автоматическая генерация всех 6 полей формы -->
+                        {{ form.as_p }}
+
+                        <button type="submit" class="btn btn-primary w-100 mt-3">Зарегистрироваться</button>
                     </form>
+
                     <div class="text-center mt-3">
-                        <a href="{% url 'users:login' %}">Уже есть аккаунт? Войти</a>
+                        <a href="{% url 'users:login' %}" class="text-muted">Уже есть аккаунт? <strong>Войти</strong></a>
                     </div>
                 </div>
             </div>

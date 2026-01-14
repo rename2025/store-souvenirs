@@ -9,7 +9,7 @@
     <div class="container text-center position-relative">
         <h1 class="display-3 fw-bold mb-4 floating">Космические сувениры</h1>
         <p class="lead mb-5">Уникальные коллекционные предметы для настоящих ценителей космоса</p>
-        <a href="{% url 'catalog' %}" class="btn btn-light btn-lg px-4 py-2">
+        <a href="{% url 'products:catalog' %}" class="btn btn-light btn-lg px-4 py-2">
             <i class="fas fa-shopping-bag me-2"></i> В каталог
         </a>
     </div>
@@ -49,11 +49,36 @@
     </div>
 </section>
 
+<!--КАТЕГОРИИ -->
+<section class="container my-5">
+    <h2 class="fw-bold mb-4 text-center">Категории</h2>
+    <div class="row g-4">
+        {% for category in categories %}
+        <div class="col-md-4">
+            <div class="category-card card h-100 text-center">
+                {% if category.image %}
+                    <img src="{{ category.image.url }}" class="card-img-top category-img" alt="{{ category.name }}">
+                {% else %}
+                    <div class="no-image bg-light d-flex align-items-center justify-content-center" style="height: 200px;">
+                        <i class="fas fa-image fa-3x text-muted"></i>
+                    </div>
+                {% endif %}
+                <div class="card-body">
+                    <h5 class="card-title">{{ category.name }}</h5>
+                    <a href="{% url 'products:category' category.slug %}" class="btn btn-outline-primary">Смотреть</a>
+                  <!-- <a href="{% url 'products:catalog' %}?category={{ category.slug }}" class="btn btn-outline-primary">Смотреть товары</a> -->
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</section>
+
 <!-- Популярные товары -->
 <section class="container my-5">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h2 class="fw-bold">Популярные товары</h2>
-        <a href="{% url 'catalog' %}?sort=popular" class="btn btn-outline-dark">Смотреть все</a>
+        <a href="{% url 'products:catalog' %}?sort=popular" class="btn btn-outline-dark">Смотреть все</a>
     </div>
 
     <div class="row g-4">
@@ -173,8 +198,6 @@ document.addEventListener('DOMContentLoaded', function() {
                     if (cartBadge) {
                         cartBadge.textContent = data.cart_items_count;
                     }
-
-
                     showNotification('Товар добавлен в корзину!', 'success');
                 } else {
                     showNotification('Ошибка при добавлении товара', 'error');
@@ -188,7 +211,6 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     function showNotification(message, type) {
-        // Реализация показа уведомления
         const alertClass = type === 'success' ? 'alert-success' : 'alert-danger';
         const alertDiv = document.createElement('div');
         alertDiv.className = `alert ${alertClass} alert-dismissible fade show position-fixed`;
@@ -200,13 +222,10 @@ document.addEventListener('DOMContentLoaded', function() {
             <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
         `;
         document.body.appendChild(alertDiv);
-
         setTimeout(() => {
             alertDiv.remove();
         }, 3000);
     }
-
 });
 </script>
-
 {% endblock %}

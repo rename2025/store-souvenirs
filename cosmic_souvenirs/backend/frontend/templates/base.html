@@ -17,14 +17,13 @@
     <link rel="icon" href="{% static 'favicon.ico' %}" type="image/x-icon">
     <link rel="shortcut icon" href="{% static 'favicon.ico' %}" type="image/x-icon">
 
-
     {% block extra_css %}{% endblock %}
 </head>
 <body>
     <!-- Навигация -->
     <nav class="navbar navbar-expand-lg navbar-dark bg-dark fixed-top">
         <div class="container">
-            <a class="navbar-brand" href="{% url 'home' %}">
+            <a class="navbar-brand" href="{% url 'products:home' %}">
                 <i></i>Cosmic Souvenirs
             </a>
 
@@ -36,11 +35,11 @@
                 <ul class="navbar-nav me-auto">
                     <li class="nav-item">
                         <a class="nav-link {% if request.resolver_match.url_name == 'home' %}active{% endif %}"
-                           href="{% url 'home' %}">Главная</a>
+                           href="{% url 'products:home' %}">Главная</a>
                     </li>
                     <li class="nav-item">
                         <a class="nav-link {% if request.resolver_match.url_name == 'catalog' %}active{% endif %}"
-                           href="{% url 'catalog' %}">Каталог</a>
+                           href="{% url 'products:catalog' %}">Каталог</a>
                     </li>
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
@@ -48,7 +47,7 @@
                         </a>
                         <ul class="dropdown-menu">
                             {% for category in categories %}
-                            <li><a class="dropdown-item" href="{% url 'category' category.slug %}">{{ category.name }}</a></li>
+                            <li><a class="dropdown-item" href="{% url 'products:category' category.slug %}">{{ category.name }}</a></li>
                             {% endfor %}
                         </ul>
                     </li>
@@ -63,7 +62,7 @@
                 <ul class="navbar-nav ms-auto">
                     <!-- Поиск -->
                     <li class="nav-item me-2">
-                        <form class="d-flex" action="{% url 'search' %}" method="get">
+                        <form class="d-flex" action="{% url 'products:search' %}" method="get">
                             <input class="form-control me-2" type="search" name="q" placeholder="Поиск..." aria-label="Search">
                             <button class="btn btn-outline-light" type="submit">
                                 <i class="fas fa-search"></i>
@@ -145,9 +144,8 @@
                 <div class="col-md-2">
                     <h5 class="fw-bold mb-4">Магазин</h5>
                     <ul class="list-unstyled">
-                        <li class="mb-2"><a href="{% url 'catalog' %}" class="text-white-50">Каталог</a></li>
-                        <li class="mb-2"><a href="{% url 'new_arrivals' %}" class="text-white-50">Новинки</a></li>
-                    <!--    <li class="mb-2"><a href="{% url 'sales' %}" class="text-white-50">Акции</a></li> -->
+                        <li class="mb-2"><a href="{% url 'products:catalog' %}" class="text-white-50">Каталог</a></li>
+                        <li class="mb-2"><a href="{% url 'products:new_arrivals' %}" class="text-white-50">Новинки</a></li>
                     </ul>
                 </div>
                 <div class="col-md-3">
@@ -183,16 +181,13 @@
     <script src="{% static 'js/orders.js' %}"></script>
     <script src="{% static 'js/custom.js' %}"></script>
 
-
     <script>
     console.log('✅ Все JS файлы загружены!');
     console.log('main.js:', typeof initCartFunctionality);
     console.log('cart.js:', typeof addToCart);
     console.log('products.js:', typeof initProductFilters);
-</script>
-
+    </script>
 
     {% block extra_js %}{% endblock %}
 </body>
 </html>
-
