@@ -35,7 +35,7 @@
                     {% for item in cart_items %}
                     <div class="d-flex justify-content-between mb-2">
                         <span>{{ item.product.name }} × {{ item.quantity }}</span>
-                        <span>{{ item.total_price }} ₽</span>  <!-- ✅ ИСПРАВЛЕНО: total → total_price -->
+                        <span>{{ item.total_price }} ₽</span>
                     </div>
                     {% empty %}
                     <p class="text-muted">Корзина пуста</p>

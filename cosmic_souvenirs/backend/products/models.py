@@ -1,7 +1,7 @@
-from django.urls import reverse_lazy
+from django.urls import reverse
 from django.utils.text import slugify
 from django.db import models
-# from reviews.models import Product
+#from reviews.models import Product
 
 
 
@@ -28,8 +28,7 @@ class Category(models.Model):
         super().save(*args, **kwargs)
 
     def get_absolute_url(self):
-
-        return reverse_lazy('category', kwargs={'slug': self.slug})
+        return reverse('products:product_detail', kwargs={'slug': self.slug})
 
 
 class Product(models.Model):
@@ -76,7 +75,7 @@ class Product(models.Model):
 
     def get_absolute_url(self):
 
-        return reverse_lazy('product_detail', kwargs={'slug': self.slug})
+        return reverse('product_detail', kwargs={'slug': self.slug})
 
     def is_in_stock(self):
         if not self.track_quantity:

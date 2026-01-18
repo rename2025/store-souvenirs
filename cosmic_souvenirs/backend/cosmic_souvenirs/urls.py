@@ -10,7 +10,6 @@ urlpatterns = [
 
     # Главная страница (через products)
     path('', include('products.urls', namespace='products')),
-    #path('', include('products.urls')),
 
     # Аутентификация (Django built-in)
     path('accounts/', include('django.contrib.auth.urls')),
@@ -41,11 +40,12 @@ if settings.DEBUG:
     if not settings.STATIC_URL.startswith('http'):
         urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
 
-    # debug_toolbar
+        # debug_toolbar
     try:
         import debug_toolbar
+
         urlpatterns = [
-            path('__debug__/', include(debug_toolbar.urls)),
-        ] + urlpatterns
+                          path('__debug__/', include(debug_toolbar.urls)),
+                      ] + urlpatterns
     except ImportError:
         pass

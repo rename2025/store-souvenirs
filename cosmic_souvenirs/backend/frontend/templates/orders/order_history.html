@@ -1,0 +1,7 @@
+<h1>История заказов</h1>
+{% for order in orders %}
+    <div>Заказ #{{ order.order_number }} - {{ order.total_amount }} руб.</div>
+{% empty %}
+    <p>Нет заказов</p>
+{% endfor %}
+<a href="/">← Главная</a>

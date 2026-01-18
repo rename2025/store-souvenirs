@@ -21,7 +21,7 @@
                         <button class="btn btn-primary add-to-cart" data-product-id="{{ product.id }}">
                             В корзину
                         </button>
-                        <a href="{% url 'product_detail' product.slug %}" class="btn btn-outline-secondary">
+                        <a href="{% url 'products:product_detail' product.slug %}" class="btn btn-outline-secondary">
                             Подробнее
                         </a>
                     </div>

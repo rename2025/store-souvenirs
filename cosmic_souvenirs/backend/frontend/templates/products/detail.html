@@ -22,8 +22,8 @@
 <div class="container my-5">
     <nav aria-label="breadcrumb">
         <ol class="breadcrumb">
-            <li class="breadcrumb-item"><a href="{% url 'home' %}">Главная</a></li>
-            <li class="breadcrumb-item"><a href="{% url 'catalog' %}">Каталог</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'products:home' %}">Главная</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'products:catalog' %}">Каталог</a></li>
             {% for category in product.categories.all %}
             <li class="breadcrumb-item"><a href="/catalog/{{ category.slug }}/">{{ category.name }}</a></li>
             {% endfor %}

@@ -1,6 +1,7 @@
 from django.db import models
 from django.conf import settings
 from django.core.validators import MinValueValidator
+from django.utils.translation import gettext_lazy as _
 
 class Order(models.Model):
     ORDER_STATUS_CHOICES = [
@@ -32,49 +33,52 @@ class Order(models.Model):
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        related_name='orders'
+        related_name='orders',
+        verbose_name=_('Пользователь')
     )
-    session_key = models.CharField(max_length=40, null=True, blank=True)  # ← ДОБАВЛЕНО для анонимных заказов
-    order_number = models.CharField(max_length=20, unique=True, blank=True)
+    session_key = models.CharField(max_length=40, null=True, blank=True, verbose_name=_('Ключ сессии'))
+    order_number = models.CharField(max_length=20, unique=True, blank=True, verbose_name=_('Номер заказа'))
 
     # Статусы
-    status = models.CharField(max_length=20, choices=ORDER_STATUS_CHOICES, default='pending')
-    payment_status = models.CharField(max_length=20, choices=PAYMENT_STATUS_CHOICES, default='pending')
-    payment_method = models.CharField(max_length=20, choices=PAYMENT_METHOD_CHOICES, default='card')
+    status = models.CharField(max_length=20, choices=ORDER_STATUS_CHOICES, default='pending', verbose_name=_('Статус заказа'))
+    payment_status = models.CharField(max_length=20, choices=PAYMENT_STATUS_CHOICES, default='pending', verbose_name=_('Статус оплаты'))
+    payment_method = models.CharField(max_length=20, choices=PAYMENT_METHOD_CHOICES, default='card', verbose_name=_('Способ оплаты'))
 
     # Платежная информация
-    yookassa_payment_id = models.CharField(max_length=100, blank=True)
-    total_amount = models.DecimalField(max_digits=12, decimal_places=2, validators=[MinValueValidator(0)])
-    tax_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0)
-    shipping_cost = models.DecimalField(max_digits=8, decimal_places=2, default=0)
+    yookassa_payment_id = models.CharField(max_length=100, blank=True, verbose_name=_('ID платежа YooKassa'))
+    total_amount = models.DecimalField(max_digits=12, decimal_places=2, validators=[MinValueValidator(0)], verbose_name=_('Общая сумма'))
+    tax_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0, verbose_name=_('Сумма налогов'))
+    shipping_cost = models.DecimalField(max_digits=8, decimal_places=2, default=0, verbose_name=_('Стоимость доставки'))
 
-    # Информация о клиенте (из OrderForm)
-    customer_email = models.EmailField()
-    customer_phone = models.CharField(max_length=20)
-    customer_first_name = models.CharField(max_length=50)
-    customer_last_name = models.CharField(max_length=50)
+    # Информация о клиенте - ЭТО ПРАВИЛЬНЫЕ ИМЕНА ПОЛЕЙ!
+    customer_email = models.EmailField(verbose_name=_('Email клиента'))
+    customer_phone = models.CharField(max_length=20, verbose_name=_('Телефон клиента'))
+    customer_first_name = models.CharField(max_length=50, verbose_name=_('Имя клиента'))
+    customer_last_name = models.CharField(max_length=50, verbose_name=_('Фамилия клиента'))
 
-    delivery_days = models.PositiveIntegerField(null=True, blank=True)
+    delivery_days = models.PositiveIntegerField(null=True, blank=True, verbose_name=_('Дни доставки'))
 
     # Адрес доставки
-    shipping_address = models.JSONField()
+    shipping_address = models.JSONField(verbose_name=_('Адрес доставки'))
 
     # Комментарии
-    customer_notes = models.TextField(blank=True)
-    admin_notes = models.TextField(blank=True)
+    customer_notes = models.TextField(blank=True, verbose_name=_('Комментарий клиента'))
+    admin_notes = models.TextField(blank=True, verbose_name=_('Комментарий администратора'))
 
     # Даты
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-    paid_at = models.DateTimeField(null=True, blank=True)
-    shipped_at = models.DateTimeField(null=True, blank=True)
-    delivered_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name=_('Создан'))
+    updated_at = models.DateTimeField(auto_now=True, verbose_name=_('Обновлен'))
+    paid_at = models.DateTimeField(null=True, blank=True, verbose_name=_('Оплачен'))
+    shipped_at = models.DateTimeField(null=True, blank=True, verbose_name=_('Отправлен'))
+    delivered_at = models.DateTimeField(null=True, blank=True, verbose_name=_('Доставлен'))
 
     class Meta:
         ordering = ['-created_at']
+        verbose_name = _('Заказ')
+        verbose_name_plural = _('Заказы')
 
     def __str__(self):
-        return f"Order #{self.order_number}"
+        return f"Заказ #{self.order_number}"
 
     def save(self, *args, **kwargs):
         if not self.order_number:
@@ -98,9 +102,10 @@ class Order(models.Model):
         return reverse('order_detail', kwargs={'order_number': self.order_number})
 
 
+# Остальные модели БЕЗ ИЗМЕНЕНИЙ (они тоже правильные)
 class OrderItem(models.Model):
     order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name='items')
-    product = models.ForeignKey('products.Product', on_delete=models.PROTECT)  # ← ИСПРАВЛЕНО
+    product = models.ForeignKey('products.Product', on_delete=models.PROTECT)
     product_name = models.CharField(max_length=200)
     product_sku = models.CharField(max_length=50, blank=True)
     unit_price = models.DecimalField(max_digits=10, decimal_places=2)
@@ -115,7 +120,6 @@ class OrderItem(models.Model):
 
     @property
     def get_cost(self):
-        """Для совместимости с views"""
         return self.total_price
 
 
