@@ -1,13 +1,32 @@
-
 {% extends 'base.html' %}
 
 {% block title %}{{ title|default:"Каталог" }}{% endblock %}
 
 {% block content %}
 <div class="container mt-5 pt-4">
+
+    {% if query %}
+    <div class="alert alert-info mb-4">
+        <h4 class="alert-heading">
+            🔍 <strong>Поиск:</strong> "{{ query }}"
+        </h4>
+        <p>Найдено результатов: <strong>{{ products|length }}</strong></p>
+        <hr>
+        <small class="text-muted">
+            Ищите по названию или описанию товаров
+        </small>
+    </div>
+    {% endif %}
+
     <h1>{{ title|default:"Каталог товаров" }}</h1>
 
+    <!-- Счетчик товаров  ) -->
     {% if products %}
+        <p class="text-muted mb-4">
+            Показано товаров: <strong>{{ products|length }}</strong>
+            {% if query %}по запросу "{{ query }}"{% endif %}
+        </p>
+
         <div class="row">
             {% for product in products %}
             <div class="col-md-3 mb-4">
@@ -30,8 +49,15 @@
             {% endfor %}
         </div>
     {% else %}
-        <p>Товары не найдены</p>
+        <div class="alert alert-warning text-center py-5">
+            <h4>😔 Товары не найдены</h4>
+            {% if query %}
+                <p>По запросу "<strong>{{ query }}</strong>" ничего не найдено</p>
+            {% else %}
+                <p>В каталоге пока нет товаров</p>
+            {% endif %}
+            <a href="{% url 'products:search' %}" class="btn btn-primary">← Вернуться к каталогу</a>
+        </div>
     {% endif %}
 </div>
 {% endblock %}
-EOF

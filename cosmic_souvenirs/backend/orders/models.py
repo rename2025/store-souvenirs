@@ -39,6 +39,7 @@ class Order(models.Model):
     session_key = models.CharField(max_length=40, null=True, blank=True, verbose_name=_('Ключ сессии'))
     order_number = models.CharField(max_length=20, unique=True, blank=True, verbose_name=_('Номер заказа'))
 
+
     # Статусы
     status = models.CharField(max_length=20, choices=ORDER_STATUS_CHOICES, default='pending', verbose_name=_('Статус заказа'))
     payment_status = models.CharField(max_length=20, choices=PAYMENT_STATUS_CHOICES, default='pending', verbose_name=_('Статус оплаты'))
@@ -50,7 +51,7 @@ class Order(models.Model):
     tax_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0, verbose_name=_('Сумма налогов'))
     shipping_cost = models.DecimalField(max_digits=8, decimal_places=2, default=0, verbose_name=_('Стоимость доставки'))
 
-    # Информация о клиенте - ЭТО ПРАВИЛЬНЫЕ ИМЕНА ПОЛЕЙ!
+
     customer_email = models.EmailField(verbose_name=_('Email клиента'))
     customer_phone = models.CharField(max_length=20, verbose_name=_('Телефон клиента'))
     customer_first_name = models.CharField(max_length=50, verbose_name=_('Имя клиента'))

@@ -1,3 +1,4 @@
+
 # reviews/urls.py (рабочая версия)
 from django.urls import path
 from . import views
@@ -5,8 +6,6 @@ from . import views
 app_name = 'reviews'
 
 urlpatterns = [
-    # Основные пути
-     #path('product/<slug:slug>/',views.ProductReviewsListView.as_view(),name='product_reviews'),
 
     path('add/<int:product_id>/', views.AddReviewView.as_view(), name='add_review'),
 

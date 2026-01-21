@@ -12,3 +12,4 @@ django-celery-beat
 Pillow
 whitenoise
 gunicorn
+yookassa

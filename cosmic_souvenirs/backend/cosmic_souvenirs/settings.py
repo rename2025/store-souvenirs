@@ -2,6 +2,7 @@ import os
 from pathlib import Path
 import dj_database_url
 
+
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-your-secret-key-here')
@@ -17,6 +18,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    #'debug_toolbar',
 
     # Third-party
     'rest_framework',
@@ -29,7 +31,6 @@ INSTALLED_APPS = [
     'orders',
     'users',
     'reviews',
-
 ]
 
 MIDDLEWARE = [
@@ -42,6 +43,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    #'debug_toolbar.middleware.DebugToolbarMiddleware',
 ]
 
 ROOT_URLCONF = 'cosmic_souvenirs.urls'
@@ -64,17 +66,17 @@ TEMPLATES = [
     },
 ]
 
+
+
 WSGI_APPLICATION = 'cosmic_souvenirs.wsgi.application'
 
 # Database
 DATABASE_URL = os.environ.get('DATABASE_URL')
 if DATABASE_URL:
-    # Используем DATABASE_URL из переменных окружения (для Docker)
     DATABASES = {
         'default': dj_database_url.parse(DATABASE_URL)
     }
 else:
-    # Локальная разработка без Docker
     DATABASES = {
         'default': {
             'ENGINE': 'django.db.backends.postgresql',
@@ -132,7 +134,6 @@ STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 STATICFILES_DIRS = [BASE_DIR / 'frontend' / 'static']
 
-# WhiteNoise для продакшн
 if not DEBUG:
     STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
@@ -146,6 +147,7 @@ AUTH_USER_MODEL = 'users.User'
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
         'rest_framework.authentication.SessionAuthentication',
+        'rest_framework.authentication.TokenAuthentication',
     ],
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.IsAuthenticatedOrReadOnly',
@@ -161,13 +163,12 @@ REST_FRAMEWORK = {
 
 # CORS
 CORS_ALLOWED_ORIGINS = os.environ.get('CORS_ALLOWED_ORIGINS',
-    "http://localhost:3000,http://127.0.0.1:3000").split(',')
+    "http://localhost:3000,http://127.0.0.1:3000,http://localhost,http://127.0.0.1").split(',')
 CORS_ALLOW_ALL_ORIGINS = DEBUG
 
 # Celery
 CELERY_BROKER_URL = REDIS_URL
 CELERY_RESULT_BACKEND = REDIS_URL
-CELERY_RESULT_BACKEND = 'django-db'
 CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
@@ -182,9 +183,40 @@ EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', '')
 EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', '')
 DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', 'noreply@cosmic-souvenirs.ru')
 
-# YooKassa
-YOOKASSA_SHOP_ID = os.getenv('YOOKASSA_SHOP_ID')
-YOOKASSA_SECRET_KEY = os.getenv('YOOKASSA_SECRET_KEY')
+# YooKassa -
+YOOKASSA_SHOP_ID = os.getenv('YOOKASSA_SHOP_ID', '')
+YOOKASSA_SECRET_KEY = os.getenv('YOOKASSA_SECRET_KEY', '')
+YOOKASSA_WEBHOOK_SECRET = os.getenv('YOOKASSA_WEBHOOK_SECRET', '')
+
+# URLs
+YOOKASSA_FAIL_URL = os.getenv('YOOKASSA_FAIL_URL', 'http://localhost/fail/')
+YOOKASSA_WEBHOOK_URL = os.getenv('YOOKASSA_WEBHOOK_URL', 'http://localhost/webhook/yookassa/')
+YOOKASSA_SUCCESS_URL = os.getenv('YOOKASSA_SUCCESS_URL', 'http://localhost:8000/orders/success/')
+
+
+# Логгер для YooKassa
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'handlers': {
+        'file': {
+            'level': 'INFO',
+            'class': 'logging.FileHandler',
+            'filename': BASE_DIR / 'logs' / 'yookassa.log',
+        },
+        'console': {
+            'level': 'INFO',
+            'class': 'logging.StreamHandler',
+        },
+    },
+    'loggers': {
+        'yookassa': {
+            'handlers': ['file', 'console'],
+            'level': 'INFO',
+            'propagate': True,
+        },
+    },
+}
 
 # Security
 if not DEBUG:
@@ -201,5 +233,5 @@ LOGIN_URL = '/users/login/'
 LOGIN_REDIRECT_URL = '/'
 LOGOUT_REDIRECT_URL = '/'
 
-#AUTHENTICATION_BACKENDS = [
-#'django.contrib.auth.backends.ModelBackend',]
+
+

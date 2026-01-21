@@ -3,7 +3,7 @@ from orders.models import Order
 
 
 class OrderForm(forms.Form):
-    # ✅ ПРАВИЛЬНЫЕ имена полей модели Order!
+
     customer_first_name = forms.CharField(max_length=50, label='Имя')
     customer_last_name = forms.CharField(max_length=50, label='Фамилия')
     customer_email = forms.EmailField(label='Email')

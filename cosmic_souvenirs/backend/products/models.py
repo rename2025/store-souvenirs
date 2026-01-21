@@ -1,8 +1,7 @@
 from django.urls import reverse
 from django.utils.text import slugify
 from django.db import models
-#from reviews.models import Product
-
+from django.utils import timezone
 
 
 class Category(models.Model):
@@ -74,7 +73,6 @@ class Product(models.Model):
         super().save(*args, **kwargs)
 
     def get_absolute_url(self):
-
         return reverse('product_detail', kwargs={'slug': self.slug})
 
     def is_in_stock(self):
@@ -156,3 +154,100 @@ class ProductTag(models.Model):
 
     def __str__(self):
         return f"{self.product.name} - {self.tag.name}"
+
+
+class Order(models.Model):
+    """модель Order  YooKassa"""
+    PENDING = 'pending'
+    CONFIRMED = 'confirmed'
+    SHIPPED = 'shipped'
+    DELIVERED = 'delivered'
+    CANCELLED = 'cancelled'
+    FAILED = 'failed'
+
+    STATUS_CHOICES = [
+        (PENDING, 'Ожидает оплаты'),
+        (CONFIRMED, 'Подтвержден'),
+        (SHIPPED, 'Отправлен'),
+        (DELIVERED, 'Доставлен'),
+        (CANCELLED, 'Отменен'),
+        (FAILED, 'Ошибка'),
+    ]
+
+    PAYMENT_PENDING = 'pending'
+    PAYMENT_PAID = 'paid'
+    PAYMENT_FAILED = 'failed'
+    PAYMENT_CANCELLED = 'cancelled'
+
+    PAYMENT_STATUS_CHOICES = [
+        (PAYMENT_PENDING, 'Ожидает'),
+        (PAYMENT_PAID, 'Оплачен'),
+        (PAYMENT_FAILED, 'Неудача'),
+        (PAYMENT_CANCELLED, 'Отменен'),
+    ]
+
+    user = models.ForeignKey('users.User', on_delete=models.SET_NULL, null=True, blank=True)
+    session_key = models.CharField(max_length=40, null=True, blank=True)
+
+    # Данные клиента
+    customer_first_name = models.CharField(max_length=50)
+    customer_last_name = models.CharField(max_length=50)
+    customer_email = models.EmailField()
+    customer_phone = models.CharField(max_length=20)
+
+    # Адрес доставки (JSONField для гибкости)
+    shipping_address = models.JSONField(default=dict)
+
+    # Заказ
+    order_number = models.CharField(max_length=20, unique=True, editable=False)
+    customer_notes = models.TextField(blank=True)
+    payment_method = models.CharField(max_length=20, default='yookassa')
+
+    # YooKassa поля
+    payment_id = models.CharField(max_length=36, blank=True, null=True)  # YooKassa payment ID
+    yookassa_status = models.CharField(max_length=20, default='pending')
+
+    # Суммы
+    subtotal_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    tax_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    shipping_cost = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    total_amount = models.DecimalField(max_digits=10, decimal_places=2)
+
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=PENDING)
+    payment_status = models.CharField(max_length=20, choices=PAYMENT_STATUS_CHOICES, default=PAYMENT_PENDING)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"Заказ {self.order_number}"
+
+    def save(self, *args, **kwargs):
+        if not self.order_number:
+            self.order_number = f"CS{timezone.now().strftime('%Y%m%d')}{self.id:05d}"
+        super().save(*args, **kwargs)
+
+    @property
+    def get_payment_status_display(self):
+        status = dict(self.PAYMENT_STATUS_CHOICES).get(self.payment_status)
+        return status or self.payment_status
+
+
+class OrderItem(models.Model):
+    """Товары в заказе"""
+    order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name='items')
+    product = models.ForeignKey(Product, on_delete=models.SET_NULL, null=True,
+                                related_name='orders_items')  # ← ФИКС КОНФЛИКТА!
+
+    product_name = models.CharField(max_length=200)
+    product_sku = models.CharField(max_length=50, blank=True)
+    unit_price = models.DecimalField(max_digits=10, decimal_places=2)
+    quantity = models.PositiveIntegerField()
+    total_price = models.DecimalField(max_digits=10, decimal_places=2, editable=False)
+
+    def save(self, *args, **kwargs):
+        self.total_price = self.unit_price * self.quantity
+        super().save(*args, **kwargs)
