@@ -1,16 +1,15 @@
 from django.core.cache import cache
 from django.db.models import Avg, Count
-from django.contrib.auth import get_user_model  # ← ИСПРАВЛЕНО
+from django.contrib.auth import get_user_model
 from django.shortcuts import render, get_object_or_404
 from django.views.generic import ListView, DetailView
 from django.utils import timezone
 from datetime import timedelta
 from .models import Product, Category
 from reviews.models import Review
+from django.db.models import Q
 
-User = get_user_model()  # ← ИСПРАВЛЕНО
-
-
+User = get_user_model()
 
 try:
     from orders.models import Order
@@ -84,7 +83,6 @@ def home(request):
     return render(request, 'index.html', data)
 
 
-
 class ProductListView(ListView):
     model = Product
     template_name = 'products/catalog.html'
@@ -94,11 +92,22 @@ class ProductListView(ListView):
     def get_queryset(self):
         queryset = Product.objects.filter(is_active=True)
 
+        query = self.request.GET.get('q', '').strip()
+        if query:
+            print(f" Поиск '{query}'")
+            queryset = Product.objects.filter(
+                is_active=True,
+                categories__name__icontains=query
+            ).distinct()
+            print(f" Найдено: {queryset.count()} товаров")
+            return queryset  # ← ВАЖНО! return сразу
+
         category_slug = self.kwargs.get('category_slug')
         if category_slug:
             category = get_object_or_404(Category, slug=category_slug)
             queryset = queryset.filter(categories=category)
 
+        # 3. Фильтры цены
         min_price = self.request.GET.get('min_price')
         max_price = self.request.GET.get('max_price')
         if min_price:
@@ -106,6 +115,7 @@ class ProductListView(ListView):
         if max_price:
             queryset = queryset.filter(price__lte=max_price)
 
+        # 4. Сортировка
         sort = self.request.GET.get('sort', 'newest')
         if sort == 'price_asc':
             queryset = queryset.order_by('price')
@@ -124,8 +134,14 @@ class ProductListView(ListView):
         context = super().get_context_data(**kwargs)
         context['categories'] = Category.objects.filter(is_active=True, parent__isnull=True)
         context['current_category'] = self.kwargs.get('category_slug')
-        return context
+        context['query'] = self.request.GET.get('q', '')
 
+
+        category_slug = self.kwargs.get('category_slug')
+        if category_slug:
+            context['category'] = get_object_or_404(Category, slug=category_slug)
+
+        return context
 
 class ProductDetailView(DetailView):
     model = Product
@@ -133,25 +149,22 @@ class ProductDetailView(DetailView):
     context_object_name = 'product'
 
     def get_queryset(self):
-        # Временно убираем prefetch_related('reviews')
         return Product.objects.filter(is_active=True).prefetch_related(
             'images', 'attributes'
-
         )
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         product = self.object
 
-
         context['average_rating'] = 0
-
         context['related_products'] = Product.objects.filter(
             categories__in=product.categories.all(),
             is_active=True
         ).exclude(id=product.id).distinct()[:4]
 
         return context
+
 
 
 def new_arrivals(request):
@@ -171,14 +184,14 @@ def sales(request):
     """Показывает товары со скидкой"""
 
     try:
-        # Проверяем, есть ли у модели поле discount
+
         if hasattr(Product, 'discount'):
             sale_products = Product.objects.filter(
                 is_active=True,
                 discount__gt=0
             )[:10]
         else:
-            # Если поля нет, показываем бестселлеры
+
             sale_products = Product.objects.filter(
                 is_active=True,
                 is_bestseller=True
@@ -192,32 +205,25 @@ def sales(request):
         'title': 'Акции'
     })
 
-
 def search(request):
     """Поиск товаров"""
     query = request.GET.get('q', '').strip()
 
     if query:
-        products = Product.objects.filter(
-            is_active=True
-        ).filter(
-            name__icontains=query
-        ) | Product.objects.filter(
-            is_active=True
-        ).filter(
-            description__icontains=query
-        )
-        products = products.distinct()[:20]
+        name_products = Product.objects.filter(is_active=True, name__icontains=query)
+        desc_products = Product.objects.filter(is_active=True, description__icontains=query)
+        products = (name_products | desc_products).distinct()[:20]
         title = f'Результаты поиска: "{query}"'
     else:
-        products = Product.objects.filter(is_active=True)[:20]
-        title = 'Все товары'
+        products = Product.objects.none()
+        title = 'Введите запрос для поиска'
 
-    return render(request, 'products/catalog.html', {
+    return render(request, 'products/search.html', {
         'products': products,
         'title': title,
         'query': query
     })
+
 
 
 class CategoryDetailView(ListView):
@@ -242,3 +248,5 @@ class CategoryDetailView(ListView):
         context['category'] = get_object_or_404(Category, slug=category_slug)
         context['categories'] = Category.objects.filter(is_active=True, parent__isnull=True)
         return context
+
+

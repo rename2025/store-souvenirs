@@ -1,29 +1,44 @@
 {% extends 'base.html' %}
-
 {% block title %}{{ title|default:"Каталог" }}{% endblock %}
 
 {% block content %}
 <div class="container mt-5 pt-4">
 
-    {% if query %}
-    <div class="alert alert-info mb-4">
-        <h4 class="alert-heading">
-            🔍 <strong>Поиск:</strong> "{{ query }}"
-        </h4>
-        <p>Найдено результатов: <strong>{{ products|length }}</strong></p>
-        <hr>
-        <small class="text-muted">
-            Ищите по названию или описанию товаров
-        </small>
+    <!--КАРТОЧКА КАТЕГОРИИ -->
+    {% if category %}
+    <div class="row mb-5">
+        <div class="col-md-4 mx-auto">
+            <div class="category-card card h-100 text-center">
+                {% if category.image %}
+                    <img src="{{ category.image.url }}" class="card-img-top category-img" alt="{{ category.name }}">
+                {% else %}
+                    <div class="no-image bg-light d-flex align-items-center justify-content-center" style="height: 200px;">
+                        <i class="fas fa-image fa-3x text-muted"></i>
+                    </div>
+                {% endif %}
+                <div class="card-body">
+                    <h3 class="card-title">{{ category.name }}</h3>
+                    <p class="lead">Товаров: <strong>{{ products|length }}</strong></p>
+                    <a href="{% url 'products:catalog' %}" class="btn btn-outline-primary">← Все категории</a>
+                </div>
+            </div>
+        </div>
     </div>
+    {% endif %}
+
+    <!-- Поиск -->
+    {% if query %}
+        <div class="alert alert-info mb-4">
+            🔍 Поиск "{{ query }}": {{ products|length }} результатов
+        </div>
     {% endif %}
 
     <h1>{{ title|default:"Каталог товаров" }}</h1>
 
-    <!-- Счетчик товаров  ) -->
     {% if products %}
         <p class="text-muted mb-4">
             Показано товаров: <strong>{{ products|length }}</strong>
+            {% if category %}в категории "{{ category.name }}"{% endif %}
             {% if query %}по запросу "{{ query }}"{% endif %}
         </p>
 
@@ -51,12 +66,14 @@
     {% else %}
         <div class="alert alert-warning text-center py-5">
             <h4>😔 Товары не найдены</h4>
-            {% if query %}
+            {% if category %}
+                <p>В категории "<strong>{{ category.name }}</strong>" пока нет товаров</p>
+            {% elif query %}
                 <p>По запросу "<strong>{{ query }}</strong>" ничего не найдено</p>
             {% else %}
                 <p>В каталоге пока нет товаров</p>
             {% endif %}
-            <a href="{% url 'products:search' %}" class="btn btn-primary">← Вернуться к каталогу</a>
+            <a href="{% url 'products:catalog' %}" class="btn btn-primary">← К каталогу</a>
         </div>
     {% endif %}
 </div>
