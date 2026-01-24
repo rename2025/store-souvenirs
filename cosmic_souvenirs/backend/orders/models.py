@@ -3,6 +3,7 @@ from django.conf import settings
 from django.core.validators import MinValueValidator
 from django.utils.translation import gettext_lazy as _
 
+
 class Order(models.Model):
     ORDER_STATUS_CHOICES = [
         ('pending', 'Ожидает обработки'),
@@ -26,6 +27,27 @@ class Order(models.Model):
         ('electronic', 'Электронные деньги'),
         ('cash', 'Наличные при получении'),
     ]
+
+
+    promo_code = models.ForeignKey(
+        'products.PromoCode',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='orders',
+        verbose_name='Промокод'
+    )
+    discount_amount = models.DecimalField(
+        default=0,
+        max_digits=10,
+        decimal_places=2,
+        verbose_name='Сумма скидки'
+    )
+    final_total = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        verbose_name='Итого с учетом скидки'
+    )
 
     # Основная информация
     user = models.ForeignKey(
@@ -82,8 +104,24 @@ class Order(models.Model):
         return f"Заказ #{self.order_number}"
 
     def save(self, *args, **kwargs):
+        # Автоматически заполняем final_total если не указан
+        if not hasattr(self, '_initial') or self.pk is None:
+            self.final_total = self.total_amount or 0
+            self.discount_amount = getattr(self, 'discount_amount', 0)
+
+        # Если есть промокод — пересчитываем
+        if self.promo_code and self.promo_code.can_use():
+            if self.promo_code.discount_type == 'percent':
+                self.discount_amount = self.total_amount * (self.promo_code.discount_value / 100)
+            else:
+                self.discount_amount = self.promo_code.discount_value
+            self.discount_amount = min(self.discount_amount, self.total_amount)
+            self.final_total = self.total_amount - self.discount_amount
+
+        # Генерируем номер заказа
         if not self.order_number:
             self.order_number = self.generate_order_number()
+
         super().save(*args, **kwargs)
 
     def generate_order_number(self):
@@ -103,7 +141,42 @@ class Order(models.Model):
         return reverse('order_detail', kwargs={'order_number': self.order_number})
 
 
-# Остальные модели БЕЗ ИЗМЕНЕНИЙ (они тоже правильные)
+def apply_promo_code(self, promo_code_str):
+    """Автоматически применить промокод"""
+    from products.models import PromoCode
+    from django.utils import timezone
+    from django.db.models import F
+
+    try:
+        promo = PromoCode.objects.get(
+            code=promo_code_str,
+            is_active=True,
+            valid_until__gt=timezone.now(),
+            used_count__lt=F('usage_limit')
+        )
+
+        if promo.discount_type == 'percent':
+            self.discount_amount = self.total * (promo.discount_value / 100)
+        else:
+            self.discount_amount = promo.discount_value
+
+        self.discount_amount = min(self.discount_amount, self.total)
+        self.final_total = self.total - self.discount_amount
+        self.promo_code = promo
+        self.save()
+
+        promo.used_count += 1
+        promo.save()
+        return True, f"Скидка {promo.discount_value}% применена!"
+
+    except PromoCode.DoesNotExist:
+        self.discount_amount = 0
+        self.final_total = self.total
+        self.promo_code = None
+        self.save()
+        return False, "Промокод недействителен"
+
+
 class OrderItem(models.Model):
     order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name='items')
     product = models.ForeignKey('products.Product', on_delete=models.PROTECT)

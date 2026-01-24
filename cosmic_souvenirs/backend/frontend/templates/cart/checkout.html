@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Оформление заказа</title>
+    <meta charset="utf-8">
+</head>
+<body>
+<h2>Оформление заказа</h2>
+
+<h3>Контактные данные</h3>
+<form method="post" id="checkout-form">
+    {% csrf_token %}
+    <input type="text" name="first_name" placeholder="Имя" required><br><br>
+    <input type="text" name="last_name" placeholder="Фамилия" required><br><br>
+    <input type="email" name="email" placeholder="Email" required><br><br>
+    <input type="tel" name="phone" placeholder="Телефон" required><br><br>
+    <textarea name="address" placeholder="Адрес" required></textarea><br><br>
+
+    <!-- 🆕 ПРОМОКОДЫ БЛОК -->
+    <div style="border: 1px solid #ddd; padding: 15px; margin: 20px 0; border-radius: 5px;">
+        <h3>Промокод <span id="promo-status" style="color: orange;">➖</span></h3>
+        <div style="display: flex; gap: 10px;">
+            <input type="text" id="promo-input" placeholder="TEST20" style="flex: 1;">
+            <button type="button" onclick="applyPromo()" style="background: #007bff; color: white; border: none; padding: 10px 20px; border-radius: 5px;">Применить</button>
+        </div>
+        <div id="promo-result" style="margin-top: 10px; font-weight: bold;"></div>
+        <input type="hidden" name="promo_code" id="promo-hidden" value="">
+    </div>
+
+    <h3>Ваш заказ</h3>
+    {% if cart_items %}
+        <table border="1" style="width: 100%; border-collapse: collapse;">
+            <tr style="background: #f8f9fa;">
+                <th>Товар</th><th>Цена</th><th>Кол-во</th><th>Сумма</th>
+            </tr>
+            {% for item in cart_items %}
+            <tr>
+                <td>{{ item.name }}</td>
+                <td>{{ item.price }} ₽</td>
+                <td>{{ item.quantity }}</td>
+                <td>{{ item.total }} ₽</td>
+            </tr>
+            {% endfor %}
+        </table>
+        <h3 style="margin-top: 20px;">
+            Итого: <span id="total-display">{{ total }}</span> ₽
+            <span id="discount-display" style="color: green; font-size: 1.2em;"> </span>
+        </h3>
+    {% else %}
+        <p style="color:red;">Корзина пуста</p>
+    {% endif %}
+    <br>
+    <button type="submit" id="submit-btn">Оформить заказ</button>
+</form>
+
+<script>
+function applyPromo() {
+    const code = document.getElementById('promo-input').value.trim();
+    const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+
+    if (!code) {
+        alert('Введите промокод');
+        return;
+    }
+
+    // Показываем загрузку
+    document.getElementById('promo-status').innerHTML = '⏳';
+
+    fetch('/cart/apply-promo/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrfToken
+        },
+        body: JSON.stringify({promo_code: code})
+    })
+    .then(response => response.json())
+    .then(data => {
+        const result = document.getElementById('promo-result');
+        const status = document.getElementById('promo-status');
+
+        if (data.success) {
+            result.innerHTML = `✅ ${data.message}`;
+            result.style.color = 'green';
+            status.innerHTML = '✅';
+            document.getElementById('promo-hidden').value = code;
+            document.getElementById('discount-display').innerHTML =
+                ` -${data.discount} ₽ = <strong>${data.final_total} ₽</strong>`;
+            document.getElementById('total-display').style.textDecoration = 'line-through';
+        } else {
+            result.innerHTML = `❌ ${data.message}`;
+            result.style.color = 'red';
+            status.innerHTML = '❌';
+            document.getElementById('promo-hidden').value = '';
+            document.getElementById('discount-display').innerHTML = '';
+            document.getElementById('total-display').style.textDecoration = 'none';
+        }
+    })
+    .catch(error => {
+        document.getElementById('promo-result').innerHTML = 'Ошибка сети';
+        document.getElementById('promo-result').style.color = 'red';
+        document.getElementById('promo-status').innerHTML = '❌';
+    });
+}
+</script>
+</body>
+</html>

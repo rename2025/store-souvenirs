@@ -2,6 +2,8 @@ from django.urls import reverse
 from django.utils.text import slugify
 from django.db import models
 from django.utils import timezone
+from django.core.validators import MinValueValidator, MaxValueValidator
+from decimal import Decimal
 
 
 class Category(models.Model):
@@ -251,3 +253,34 @@ class OrderItem(models.Model):
     def save(self, *args, **kwargs):
         self.total_price = self.unit_price * self.quantity
         super().save(*args, **kwargs)
+
+
+class PromoCode(models.Model):
+    code = models.CharField(max_length=20, unique=True)
+    discount_type = models.CharField(
+        max_length=10,
+        choices=[('percent', 'Процент'), ('fixed', 'Фиксированная сумма')]
+    )
+    discount_value = models.DecimalField(
+        max_digits=6,
+        decimal_places=2,
+        validators=[MinValueValidator(0), MaxValueValidator(100)]
+    )
+    valid_from = models.DateTimeField()
+    valid_until = models.DateTimeField()
+    usage_limit = models.PositiveIntegerField(default=1)
+    used_count = models.PositiveIntegerField(default=0)
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        verbose_name = 'Промокод'
+        verbose_name_plural = 'Промокоды'
+
+    def __str__(self):
+        return self.code
+
+    def can_use(self):
+        return (self.is_active and
+                timezone.now() >= self.valid_from and
+                timezone.now() <= self.valid_until and
+                self.used_count < self.usage_limit)

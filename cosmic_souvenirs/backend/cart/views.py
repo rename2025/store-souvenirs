@@ -2,8 +2,11 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
+from django.views.decorators.http import require_POST
 from products.models import Product
-
+from orders.models import Order
+from django.views.decorators.csrf import csrf_exempt
+import json
 
 def _get_cart(request):
     """Получает корзину из сессии"""
@@ -121,3 +124,86 @@ def add_to_cart(request):
         })
 
     return JsonResponse({'success': False}, status=400)
+
+@csrf_exempt
+@require_POST
+def apply_promo(request):
+    """AJAX: применить промокод к корзине"""
+    try:
+        data = json.loads(request.body)
+        promo_code = data.get('promo_code', '').strip().upper()
+
+        if not promo_code:
+            return JsonResponse({'success': False, 'message': 'Промокод не указан'})
+
+        # Получаем общую сумму корзины
+        cart = _get_cart(request)
+        total_amount = 0
+
+        for product_id_str, quantity in cart.items():
+            try:
+                product_id = int(product_id_str)
+                product = Product.objects.get(id=product_id, is_active=True)
+                total_amount += product.price * quantity
+            except (ValueError, Product.DoesNotExist):
+                continue
+
+        if total_amount == 0:
+            return JsonResponse({'success': False, 'message': 'Корзина пуста'})
+
+        # Создаем временный заказ для расчета скидки
+        session_key = request.session.session_key
+        if not session_key:
+            request.session.save()
+            session_key = request.session.session_key
+
+        temp_order = Order(
+            total_amount=total_amount,
+            session_key=session_key,
+            customer_email='promo@test.com'  # заглушка
+        )
+
+        # Применяем промокод
+        success, message = temp_order.apply_promo_code(promo_code)
+
+        return JsonResponse({
+            'success': success,
+            'message': message,
+            'discount_amount': f'{temp_order.discount_amount:.2f}',
+            'final_total': f'{temp_order.final_total:.2f}'
+        })
+
+    except Exception as e:
+        return JsonResponse({'success': False, 'message': f'Ошибка: {str(e)}'}, status=500)
+
+
+def checkout(request):
+    """Оформление заказа"""
+    cart = _get_cart(request)
+    cart_items = []
+    total = 0
+
+    for product_id_str, quantity in cart.items():
+        try:
+            product_id = int(product_id_str)
+            product = Product.objects.get(id=product_id, is_active=True)
+            item_total = product.price * quantity
+            total += item_total
+
+            cart_items.append({
+                'name': product.name,
+                'price': product.price,
+                'quantity': quantity,
+                'total': item_total
+            })
+        except (ValueError, Product.DoesNotExist):
+            continue
+
+    context = {
+        'cart_items': cart_items,
+        'total': total,
+        'cart_items_count': len(cart_items)
+    }
+
+    return render(request, 'cart/checkout.html', context)
+

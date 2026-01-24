@@ -248,5 +248,3 @@ class CategoryDetailView(ListView):
         context['category'] = get_object_or_404(Category, slug=category_slug)
         context['categories'] = Category.objects.filter(is_active=True, parent__isnull=True)
         return context
-
-

@@ -1,6 +1,9 @@
 # Register your models here.
 from django.contrib import admin
-from .models import Category, Product, ProductImage, ProductAttribute, ProductAttributeValue
+from django.utils.html import format_html
+from .models import (Category, Product, ProductImage, ProductAttribute,
+ProductAttributeValue, \
+                     PromoCode)
 
 
 @admin.register(Category)
@@ -30,7 +33,6 @@ class ProductAdmin(admin.ModelAdmin):
     inlines = [ProductImageInline, ProductAttributeInline]
     readonly_fields = ['created_at', 'updated_at']
 
-    #
     def is_in_stock(self, obj):
         """В наличии"""
         return obj.is_in_stock()
@@ -58,3 +60,17 @@ class ProductAdmin(admin.ModelAdmin):
             'fields': ('created_at', 'updated_at')
         }),
     )
+
+
+@admin.register(PromoCode)
+class PromoCodeAdmin(admin.ModelAdmin):
+    list_display = ['code', 'discount_type', 'discount_value', 'valid_from', 'valid_until', 'used_count', 'can_use']
+    list_filter = ['discount_type', 'is_active', 'valid_from', 'valid_until']
+    search_fields = ['code']
+    readonly_fields = ['used_count']
+
+    def can_use(self, obj):
+        return obj.can_use()
+
+    can_use.boolean = True
+    can_use.short_description = 'Можно использовать'
