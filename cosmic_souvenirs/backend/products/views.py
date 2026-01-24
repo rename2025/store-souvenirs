@@ -1,3 +1,6 @@
+from django.http import JsonResponse, HttpResponse
+from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_http_methods
 from django.core.cache import cache
 from django.db.models import Avg, Count
 from django.contrib.auth import get_user_model
@@ -5,14 +8,16 @@ from django.shortcuts import render, get_object_or_404
 from django.views.generic import ListView, DetailView
 from django.utils import timezone
 from datetime import timedelta
-from .models import Product, Category
+from .models import Product, Category, PromoCode
 from reviews.models import Review
 from django.db.models import Q
+import json
 
 User = get_user_model()
 
 try:
     from orders.models import Order
+    import orders.models as orders_models  # Для F()
 except ImportError:
     Order = None
 
@@ -30,40 +35,30 @@ def home(request):
             is_active=True, is_new=True
         )[:8]
 
-
         month_ago = timezone.now() - timedelta(days=30)
 
-        # Клиенты
         total_customers = User.objects.exclude(is_staff=True).count()
         new_customers = User.objects.filter(date_joined__gte=month_ago).exclude(is_staff=True).count()
         customers_growth = new_customers * 3 if new_customers else 0
 
-        # Товары
         total_products = Product.objects.filter(is_active=True).count()
 
-        # Рейтинг
         avg_rating_data = Review.objects.aggregate(avg=Avg('rating'))
         avg_rating = round(avg_rating_data['avg'] or 0, 1)
         satisfaction = int((avg_rating / 5) * 100) if Review.objects.exists() else 96
 
-        # Доставка
         delivery_hours = 24
         if Order:
             delivered_orders = Order.objects.filter(status='delivered').exclude(delivered_at__isnull=True)
             if delivered_orders.exists():
-                # Вычисляем разницу между доставкой и созданием заказа
-                avg_days = delivered_orders.aggregate(
-                    avg_days=Avg(
-                        (models.F('delivered_at') - models.F('created_at')).days()
-                    )
-                )['avg_days']
-                delivery_hours = round((avg_days or 1) * 24)
+                delivery_hours = 24  # Упрощено
+
         stats = {
             'customers': total_customers or 1248,
             'customers_growth': customers_growth or 12,
             'products': total_products,
             'new_products': Product.objects.filter(is_active=True, is_new=True).count(),
-            'delivery_time': f'{delivery_hours}ч',  # Теперь работает
+            'delivery_time': f'{delivery_hours}ч',
             'rating': avg_rating,
             'satisfaction': satisfaction,
         }
@@ -76,8 +71,6 @@ def home(request):
             'stats': stats,
             'categories': categories,
         }
-
-
         cache.set(cache_key, data, 600)
 
     return render(request, 'index.html', data)
@@ -100,14 +93,13 @@ class ProductListView(ListView):
                 categories__name__icontains=query
             ).distinct()
             print(f" Найдено: {queryset.count()} товаров")
-            return queryset  # ← ВАЖНО! return сразу
+            return queryset
 
         category_slug = self.kwargs.get('category_slug')
         if category_slug:
             category = get_object_or_404(Category, slug=category_slug)
             queryset = queryset.filter(categories=category)
 
-        # 3. Фильтры цены
         min_price = self.request.GET.get('min_price')
         max_price = self.request.GET.get('max_price')
         if min_price:
@@ -115,7 +107,6 @@ class ProductListView(ListView):
         if max_price:
             queryset = queryset.filter(price__lte=max_price)
 
-        # 4. Сортировка
         sort = self.request.GET.get('sort', 'newest')
         if sort == 'price_asc':
             queryset = queryset.order_by('price')
@@ -136,12 +127,12 @@ class ProductListView(ListView):
         context['current_category'] = self.kwargs.get('category_slug')
         context['query'] = self.request.GET.get('q', '')
 
-
         category_slug = self.kwargs.get('category_slug')
         if category_slug:
             context['category'] = get_object_or_404(Category, slug=category_slug)
 
         return context
+
 
 class ProductDetailView(DetailView):
     model = Product
@@ -166,9 +157,7 @@ class ProductDetailView(DetailView):
         return context
 
 
-
 def new_arrivals(request):
-    """Показывает новинки"""
     new_products = Product.objects.filter(
         is_active=True,
         is_new=True
@@ -181,23 +170,18 @@ def new_arrivals(request):
 
 
 def sales(request):
-    """Показывает товары со скидкой"""
-
     try:
-
         if hasattr(Product, 'discount'):
             sale_products = Product.objects.filter(
                 is_active=True,
                 discount__gt=0
             )[:10]
         else:
-
             sale_products = Product.objects.filter(
                 is_active=True,
                 is_bestseller=True
             )[:10]
     except:
-        # В случае ошибки показываем пустой список
         sale_products = Product.objects.none()
 
     return render(request, 'products/catalog.html', {
@@ -205,8 +189,8 @@ def sales(request):
         'title': 'Акции'
     })
 
+
 def search(request):
-    """Поиск товаров"""
     query = request.GET.get('q', '').strip()
 
     if query:
@@ -225,7 +209,6 @@ def search(request):
     })
 
 
-
 class CategoryDetailView(ListView):
     model = Product
     template_name = 'products/catalog.html'
@@ -240,7 +223,6 @@ class CategoryDetailView(ListView):
             is_active=True
         ).order_by('-created_at')
 
-
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         category_slug = self.kwargs['category_slug']
@@ -248,3 +230,56 @@ class CategoryDetailView(ListView):
         context['category'] = get_object_or_404(Category, slug=category_slug)
         context['categories'] = Category.objects.filter(is_active=True, parent__isnull=True)
         return context
+
+
+# 🆕 ПРОМОКОД — ДОБАВЛЕНО В КОНЕЦ!
+@csrf_exempt
+@require_http_methods(["POST"])
+def apply_promo(request):
+    try:
+        data = json.loads(request.body)
+        code = data.get('promo_code', '').strip().upper()
+
+        # Сумма корзины из сессии (или 21000 для теста)
+        cart_total = float(request.session.get('cart_total', 21000))
+
+        if not code:
+            return JsonResponse({'success': False, 'message': 'Введите промокод'})
+
+        promo = PromoCode.objects.filter(
+            code=code,
+            is_active=True,
+            valid_from__lte=timezone.now(),
+            valid_until__gte=timezone.now()
+        ).first()
+
+        if not promo:
+            return JsonResponse({'success': False, 'message': 'Промокод не найден или неактивен'})
+
+        if promo.usage_limit and promo.used_count >= promo.usage_limit:
+            return JsonResponse({'success': False, 'message': 'Лимит использования исчерпан'})
+
+        # Рассчитываем скидку
+        if promo.discount_type == 'Процент':
+            discount_amount = cart_total * (promo.discount_value / 100)
+        else:
+            discount_amount = min(float(promo.discount_value), cart_total)
+
+        final_total = max(0, cart_total - discount_amount)
+
+        # Сохраняем в сессию
+        request.session['promo_code'] = code
+        request.session['discount_amount'] = float(discount_amount)
+        request.session['final_total'] = final_total
+        request.session['cart_total'] = cart_total
+
+        return JsonResponse({
+            'success': True,
+            'message': f'Скидка {promo.discount_value}% применена!',
+            'discount': f'{int(discount_amount):,}'.replace(',', ' '),
+            'final_total': f'{int(final_total):,}'.replace(',', ' '),
+            'cart_total': f'{int(cart_total):,}'.replace(',', ' ')
+        })
+
+    except Exception as e:
+        return JsonResponse({'success': False, 'message': f'Ошибка: {str(e)}'})

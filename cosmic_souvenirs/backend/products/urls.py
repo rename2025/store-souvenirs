@@ -13,5 +13,8 @@ urlpatterns = [
     path('search/', views.ProductListView.as_view(), name='search'),
     path('new/', views.new_arrivals, name='new_arrivals'),
     path('sales/', views.sales, name='sales'),
-]
+    path('products/apply-promo/', views.apply_promo, name='apply_promo'),
+
+    ]
+
 
