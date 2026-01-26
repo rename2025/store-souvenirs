@@ -30,5 +30,5 @@ USER webuser
 
 EXPOSE 8000
 
-# УБРАЛ entrypoint.sh - используем command из docker-compose.yml
+
 CMD ["gunicorn", "cosmic_souvenirs.wsgi:application", "--bind", "0.0.0.0:8000"]

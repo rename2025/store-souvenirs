@@ -28,7 +28,25 @@ class Order(models.Model):
         ('cash', 'Наличные при получении'),
     ]
 
+    # Основная информация (ПЕРЕНЕСЕНО В НАЧАЛО)
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='orders',
+        verbose_name=_('Пользователь')
+    )
+    session_key = models.CharField(max_length=40, null=True, blank=True, verbose_name=_('Ключ сессии'))
+    order_number = models.CharField(max_length=20, unique=True, blank=True, verbose_name=_('Номер заказа'))
 
+    # Платежная информация
+    total_amount = models.DecimalField(max_digits=12, decimal_places=2, validators=[MinValueValidator(0)],
+                                       verbose_name=_('Общая сумма'))
+    tax_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0, verbose_name=_('Сумма налогов'))
+    shipping_cost = models.DecimalField(max_digits=8, decimal_places=2, default=0, verbose_name=_('Стоимость доставки'))
+
+    # ✅ ПРОМОКОДЫ (исправлено положение)
     promo_code = models.ForeignKey(
         'products.PromoCode',
         on_delete=models.SET_NULL,
@@ -49,42 +67,24 @@ class Order(models.Model):
         verbose_name='Итого с учетом скидки'
     )
 
-    # Основная информация
-    user = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name='orders',
-        verbose_name=_('Пользователь')
-    )
-    session_key = models.CharField(max_length=40, null=True, blank=True, verbose_name=_('Ключ сессии'))
-    order_number = models.CharField(max_length=20, unique=True, blank=True, verbose_name=_('Номер заказа'))
-
-
     # Статусы
-    status = models.CharField(max_length=20, choices=ORDER_STATUS_CHOICES, default='pending', verbose_name=_('Статус заказа'))
-    payment_status = models.CharField(max_length=20, choices=PAYMENT_STATUS_CHOICES, default='pending', verbose_name=_('Статус оплаты'))
-    payment_method = models.CharField(max_length=20, choices=PAYMENT_METHOD_CHOICES, default='card', verbose_name=_('Способ оплаты'))
+    status = models.CharField(max_length=20, choices=ORDER_STATUS_CHOICES, default='pending',
+                              verbose_name=_('Статус заказа'))
+    payment_status = models.CharField(max_length=20, choices=PAYMENT_STATUS_CHOICES, default='pending',
+                                      verbose_name=_('Статус оплаты'))
+    payment_method = models.CharField(max_length=20, choices=PAYMENT_METHOD_CHOICES, default='card',
+                                      verbose_name=_('Способ оплаты'))
 
-    # Платежная информация
     yookassa_payment_id = models.CharField(max_length=100, blank=True, verbose_name=_('ID платежа YooKassa'))
-    total_amount = models.DecimalField(max_digits=12, decimal_places=2, validators=[MinValueValidator(0)], verbose_name=_('Общая сумма'))
-    tax_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0, verbose_name=_('Сумма налогов'))
-    shipping_cost = models.DecimalField(max_digits=8, decimal_places=2, default=0, verbose_name=_('Стоимость доставки'))
 
-
-    customer_email = models.EmailField(verbose_name=_('Email клиента'))
-    customer_phone = models.CharField(max_length=20, verbose_name=_('Телефон клиента'))
+    # Клиентская информация
     customer_first_name = models.CharField(max_length=50, verbose_name=_('Имя клиента'))
     customer_last_name = models.CharField(max_length=50, verbose_name=_('Фамилия клиента'))
+    customer_email = models.EmailField(verbose_name=_('Email клиента'))
+    customer_phone = models.CharField(max_length=20, verbose_name=_('Телефон клиента'))
 
     delivery_days = models.PositiveIntegerField(null=True, blank=True, verbose_name=_('Дни доставки'))
-
-    # Адрес доставки
     shipping_address = models.JSONField(verbose_name=_('Адрес доставки'))
-
-    # Комментарии
     customer_notes = models.TextField(blank=True, verbose_name=_('Комментарий клиента'))
     admin_notes = models.TextField(blank=True, verbose_name=_('Комментарий администратора'))
 
@@ -104,24 +104,20 @@ class Order(models.Model):
         return f"Заказ #{self.order_number}"
 
     def save(self, *args, **kwargs):
-        # Автоматически заполняем final_total если не указан
-        if not hasattr(self, '_initial') or self.pk is None:
-            self.final_total = self.total_amount or 0
-            self.discount_amount = getattr(self, 'discount_amount', 0)
-
-        # Если есть промокод — пересчитываем
-        if self.promo_code and self.promo_code.can_use():
-            if self.promo_code.discount_type == 'percent':
-                self.discount_amount = self.total_amount * (self.promo_code.discount_value / 100)
-            else:
-                self.discount_amount = self.promo_code.discount_value
-            self.discount_amount = min(self.discount_amount, self.total_amount)
-            self.final_total = self.total_amount - self.discount_amount
-
         # Генерируем номер заказа
         if not self.order_number:
             self.order_number = self.generate_order_number()
 
+        # Автоматически пересчитываем final_total
+        if self.promo_code:
+            if self.promo_code.discount_type == 'percent':
+                self.discount_amount = self.total_amount * (self.promo_code.discount_value / 100)
+            else:
+                self.discount_amount = min(self.promo_code.discount_value, self.total_amount)
+        else:
+            self.discount_amount = 0
+
+        self.final_total = self.total_amount - self.discount_amount
         super().save(*args, **kwargs)
 
     def generate_order_number(self):
@@ -140,43 +136,43 @@ class Order(models.Model):
         from django.urls import reverse
         return reverse('order_detail', kwargs={'order_number': self.order_number})
 
+    # ✅ ИСПРАВЛЕННЫЙ МЕТОД
+    def apply_promo_code(self, promo_code_str):
+        """Применить промокод к заказу # ПОСЛЕ СОЗДАНИЯ ORDER"""
+        from products.models import PromoCode
 
-def apply_promo_code(self, promo_code_str):
-    """Автоматически применить промокод"""
-    from products.models import PromoCode
-    from django.utils import timezone
-    from django.db.models import F
+        try:
+            promo = PromoCode.objects.get(
+                code=promo_code_str,
+                is_active=True
+            )
 
-    try:
-        promo = PromoCode.objects.get(
-            code=promo_code_str,
-            is_active=True,
-            valid_until__gt=timezone.now(),
-            used_count__lt=F('usage_limit')
-        )
+            # ✅ ИСПРАВЛЕНО: total_amount вместо total
+            if promo.discount_type == 'percent':
+                self.discount_amount = self.total_amount * (promo.discount_value / 100)
+            else:
+                self.discount_amount = min(promo.discount_value, self.total_amount)
 
-        if promo.discount_type == 'percent':
-            self.discount_amount = self.total * (promo.discount_value / 100)
-        else:
-            self.discount_amount = promo.discount_value
+            self.final_total = self.total_amount - self.discount_amount
+            self.promo_code = promo
+            self.save()
 
-        self.discount_amount = min(self.discount_amount, self.total)
-        self.final_total = self.total - self.discount_amount
-        self.promo_code = promo
-        self.save()
+            # Увеличиваем счетчик использований промокода
+            if hasattr(promo, 'used_count'):
+                promo.used_count += 1
+                promo.save()
 
-        promo.used_count += 1
-        promo.save()
-        return True, f"Скидка {promo.discount_value}% применена!"
+            return True, f"Промокод {promo_code_str} применен! Скидка {self.discount_amount:.2f}₽"
 
-    except PromoCode.DoesNotExist:
-        self.discount_amount = 0
-        self.final_total = self.total
-        self.promo_code = None
-        self.save()
-        return False, "Промокод недействителен"
+        except PromoCode.DoesNotExist:
+            self.discount_amount = 0
+            self.final_total = self.total_amount
+            self.promo_code = None
+            self.save()
+            return False, "Промокод не найден или неактивен"
 
 
+# Остальные модели без изменений
 class OrderItem(models.Model):
     order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name='items')
     product = models.ForeignKey('products.Product', on_delete=models.PROTECT)

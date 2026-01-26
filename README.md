@@ -1,44 +1,45 @@
-#  Cosmic Souvenirs - Интернет-магазин космических сувениров
+#  Cosmic Souvenirs 
+## Космический магазин с промокодами и аналитикой
 
-![Django](https://img.shields.io/badge/Django-5.0-green)
-![PostgreSQL](https://img.shields.io/badge/PostgreSQL-17-blue)
-![Docker](https://img.shields.io/badge/Docker-Compose-orange)
+![Django](https://img.shields.io/badge/Django-5.0-green) 
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-17-blue) 
+![Docker](https://img.shields.io/badge/Docker-Compose-orange) 
 ![Python](https://img.shields.io/badge/Python-3.13-yellow)
 
-Полнофункциональный интернет-магазин для продажи уникальных космических сувениров и коллекционных предметов.
+**Полнофункциональный e-commerce с 🔥 промокодами (высокий ROI) и 📊 админ-дашбордом**
 
-## 📋 Оглавление
+## ✨ Ключевые фичи
+### 🛒 Магазин
+- ✅ Каталог с фильтрами/категориями
+- ✅ Корзина + **Промокоды** (%/₽, срок действия, лимит)
+- ✅ YooKassa оплата
+- ✅ Отзывы/рейтинги
+- ✅ Поиск товаров
 
-- [Особенности](#-особенности)
-- [Структура проекта](#-структура-проекта)
-- [Быстрый старт](#-быстрый-старт)
-- [Разработка](#-разработка)
-- [Docker](#-docker)
-- [Тестирование](#-тестирование)
-- [Развертывание](#-развертывание)
-- [Команда](#-команда)
+### 👑 Админ-дашборд
+- 📈 Мониторинг заказов
+- 💰 Аналитика продаж
+- 🎫 Управление промокодами
+- 👥 Пользователи/отзывы
 
-## ✨ Особенности
+## ⚡ Быстрый старт
+```bash
+git clone https://github.com/rename2025/store-souvenirs
+cd store-souvenirs
+docker-compose up -d
 
-### 🛒 Функционал магазина
-- **Каталог товаров** с категориями и фильтрами
-- **Корзина покупок** с сессиями
-- **Оформление заказов** с онлайн-оплатой (YooKassa)
-- **Система отзывов** и рейтингов
-- **Поиск товаров** по названию и описанию
+Django 5.0 + DRF    # Бэкенд
+PostgreSQL 17       # БД
+Redis + Celery      # Кеш/задачи
+Docker Compose      # Контейнеры
+Bootstrap 5         # Фронтенд
 
-### 👤 Пользовательская система
-- Регистрация и авторизация
-- Личный кабинет пользователя
-- История заказов
-- Избранные товары
+✔ redis      # ✅ Healthy
+✔ postgres   # ✅ Healthy  
+✔ web        # Gunicorn 8000
+✔ nginx      # localhost:80
+✔ celery     # Задачи
+✔ celery-beat# Планировщик
 
-### 🛠 Технологический стек
-- **Бэкенд**: Django 5.0, Django REST Framework
-- **База данных**: PostgreSQL 17
-- **Кеширование**: Redis
-- **Очереди задач**: Celery + Celery Beat
-- **Фронтенд**: HTML5, CSS3, JavaScript, Bootstrap 5
-- **Контейнеризация**: Docker, Docker Compose
-
-## 📁 Структура проекта
+📄 Лицензия
+MIT © 2026

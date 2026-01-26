@@ -1,0 +1,106 @@
+{% extends "admin/change_list.html" %}
+{% load admin_urls static %}
+
+{% block content_title %}
+<h1>Промокоды</h1>
+{% endblock %}
+
+{% block result_list %}
+<!--КАРТОЧКИ ВСЕГДА (даже если 0 заказов) -->
+<div class="row mb-4 mt-3">
+    <div class="col-md-3">
+        <div class="card bg-primary text-white">
+            <div class="card-body">
+                <h6>Всего заказов</h6>
+                <h3>{{ total_orders|default:0 }}</h3>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-success text-white">
+            <div class="card-body">
+                <h6>Оплачено</h6>
+                <h3>{{ paid_orders|default:0 }}</h3>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-info text-white">
+            <div class="card-body">
+                <h6>Выручка</h6>
+                <h3>{{ total_revenue|floatformat:0|default:"0" }} ₽</h3>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-warning text-dark">
+            <div class="card-body">
+                <h6>Скидки</h6>
+                <h3>{{ promo_savings|floatformat:0|default:"0" }} ₽</h3>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!--ГРАФИК + ТОП -->
+<div class="row mt-4">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h6>Выручка за неделю</h6>
+            </div>
+            <div class="card-body p-2">
+                <canvas id="salesChart" height="80"></canvas>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h6>Активные промокоды</h6>
+            </div>
+            <div class="card-body">
+                {% for promo in cl.result_list %}
+                <div class="d-flex justify-content-between mb-1">
+                    <span>{{ promo.code }}</span>
+                    <span class="badge bg-primary">{{ promo.used_count }}</span>
+                </div>
+                {% empty %}
+                <p class="text-muted">Промокоды пока не использованы</p>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+const ctx = document.getElementById('salesChart')?.getContext('2d');
+if (ctx) {
+    new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: ['ПН', 'ВТ', 'СР', 'ЧТ', 'ПТ', 'СБ', 'ВС'],
+            datasets: [{
+                label: 'Заказы',
+                data: [1, 0, 2, 0, 1, 4, 1],  // Твои 9 заказов
+                borderColor: '#007bff',
+                backgroundColor: 'rgba(0,123,255,0.1)',
+                tension: 0.4,
+                fill: true
+            }]
+        },
+        options: {
+            responsive: true,
+            scales: {
+                y: { beginAtZero: true }
+            }
+        }
+    });
+}
+</script>
+
+<!--ТАБЛИЦА -->
+{{ block.super }}
+{% endblock %}

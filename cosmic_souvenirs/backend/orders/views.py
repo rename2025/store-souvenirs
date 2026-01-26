@@ -1,3 +1,4 @@
+
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
@@ -136,7 +137,7 @@ def order_create(request):
                     'Accept': 'application/json'
                 }
 
-                # Исправленный amount - всегда строка с 2 знаками
+
                 amount_value = f"{float(total_price):.2f}"
                 payment_data = {
                     "amount": {
@@ -146,7 +147,7 @@ def order_create(request):
                     "confirmation": {
                         "type": "redirect",
                         "return_url": settings.YOOKASSA_SUCCESS_URL
-                        #"return_url": return_url
+
                     },
                     "capture": True,
                     "description": f"Заказ CS{order.id}",

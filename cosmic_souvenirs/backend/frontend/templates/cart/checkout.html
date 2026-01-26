@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html>
 <head>
@@ -56,23 +57,23 @@
 <script>
 function applyPromo() {
     const code = document.getElementById('promo-input').value.trim();
-    const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+    const form = document.getElementById('checkout-form');
+    const formData = new FormData(form);
 
     if (!code) {
         alert('Введите промокод');
         return;
     }
 
-    // Показываем загрузку
     document.getElementById('promo-status').innerHTML = '⏳';
+
 
     fetch('/cart/apply-promo/', {
         method: 'POST',
+        body: formData,  // Обычная форма, НЕ JSON
         headers: {
-            'Content-Type': 'application/json',
-            'X-CSRFToken': csrfToken
-        },
-        body: JSON.stringify({promo_code: code})
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+        }
     })
     .then(response => response.json())
     .then(data => {
@@ -85,7 +86,8 @@ function applyPromo() {
             status.innerHTML = '✅';
             document.getElementById('promo-hidden').value = code;
             document.getElementById('discount-display').innerHTML =
-                ` -${data.discount} ₽ = <strong>${data.final_total} ₽</strong>`;
+                ` <span style="color: green;">-${data.discount_amount} ₽</span> =
+                 <strong style="color: green;">${data.final_total} ₽</strong>`;
             document.getElementById('total-display').style.textDecoration = 'line-through';
         } else {
             result.innerHTML = `❌ ${data.message}`;
@@ -97,8 +99,7 @@ function applyPromo() {
         }
     })
     .catch(error => {
-        document.getElementById('promo-result').innerHTML = 'Ошибка сети';
-        document.getElementById('promo-result').style.color = 'red';
+        document.getElementById('promo-result').innerHTML = '❌ Ошибка';
         document.getElementById('promo-status').innerHTML = '❌';
     });
 }

@@ -1,12 +1,12 @@
-# cart/views.py
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
 from django.views.decorators.http import require_POST
-from products.models import Product
-from orders.models import Order
 from django.views.decorators.csrf import csrf_exempt
+from products.models import Product, PromoCode
+from orders.models import Order
 import json
+
 
 def _get_cart(request):
     """Получает корзину из сессии"""
@@ -23,8 +23,6 @@ def _save_cart(request, cart):
 def cart_detail(request):
     """Детальная страница корзины"""
     cart = _get_cart(request)
-
-    # Получаем товары из корзины
     cart_items = []
     total_price = 0
 
@@ -32,7 +30,6 @@ def cart_detail(request):
         try:
             product_id = int(product_id_str)
             product = Product.objects.get(id=product_id, is_active=True)
-
             item_total = product.price * quantity
             total_price += item_total
 
@@ -49,14 +46,12 @@ def cart_detail(request):
         'total_price': total_price,
         'cart_items_count': len(cart_items)
     }
-
     return render(request, 'cart/detail.html', context)
 
 
 def cart_add(request, product_id=None):
     """Добавляет товар в корзину"""
     if product_id is None:
-        # Для AJAX запросов
         product_id = request.POST.get('product_id') or request.GET.get('product_id')
 
     if not product_id:
@@ -69,12 +64,9 @@ def cart_add(request, product_id=None):
 
     cart = _get_cart(request)
     product_id_str = str(product_id)
-
-    # Увеличиваем количество
     cart[product_id_str] = cart.get(product_id_str, 0) + 1
     _save_cart(request, cart)
 
-    # Если это AJAX запрос
     if request.headers.get('x-requested-with') == 'XMLHttpRequest':
         return JsonResponse({
             'success': True,
@@ -98,7 +90,7 @@ def cart_remove(request, product_id):
 
 
 def add_to_cart(request):
-    """Для AJAX запросов из JavaScript (альтернатива)"""
+    """Для AJAX запросов из JavaScript"""
     if request.method == 'POST' and request.headers.get('x-requested-with') == 'XMLHttpRequest':
         product_id = request.POST.get('product_id')
         quantity = request.POST.get('quantity', 1)
@@ -107,28 +99,26 @@ def add_to_cart(request):
         except ValueError:
             quantity = 1
 
-    if product_id:
-        cart = request.session.get('cart', {})
-        product_id_str = str(product_id)
+        if product_id:
+            cart = request.session.get('cart', {})
+            product_id_str = str(product_id)
+            current_quantity = cart.get(product_id_str, 0)
+            cart[product_id_str] = current_quantity + quantity
+            request.session['cart'] = cart
+            request.session.modified = True
 
-        # Увеличиваем количество
-        current_quantity = cart.get(product_id_str, 0)
-        cart[product_id_str] = current_quantity + quantity
-
-        request.session['cart'] = cart
-        request.session.modified = True
-
-        return JsonResponse({
-            'success': True,
-            'cart_items_count': sum(cart.values())
-        })
+            return JsonResponse({
+                'success': True,
+                'cart_items_count': sum(cart.values())
+            })
 
     return JsonResponse({'success': False}, status=400)
+
 
 @csrf_exempt
 @require_POST
 def apply_promo(request):
-    """AJAX: применить промокод к корзине"""
+
     try:
         data = json.loads(request.body)
         promo_code = data.get('promo_code', '').strip().upper()
@@ -136,14 +126,13 @@ def apply_promo(request):
         if not promo_code:
             return JsonResponse({'success': False, 'message': 'Промокод не указан'})
 
-        # Получаем общую сумму корзины
+        # Вычисляем сумму корзины
         cart = _get_cart(request)
         total_amount = 0
 
         for product_id_str, quantity in cart.items():
             try:
-                product_id = int(product_id_str)
-                product = Product.objects.get(id=product_id, is_active=True)
+                product = Product.objects.get(id=int(product_id_str), is_active=True)
                 total_amount += product.price * quantity
             except (ValueError, Product.DoesNotExist):
                 continue
@@ -151,34 +140,41 @@ def apply_promo(request):
         if total_amount == 0:
             return JsonResponse({'success': False, 'message': 'Корзина пуста'})
 
-        # Создаем временный заказ для расчета скидки
-        session_key = request.session.session_key
-        if not session_key:
-            request.session.save()
-            session_key = request.session.session_key
 
-        temp_order = Order(
-            total_amount=total_amount,
-            session_key=session_key,
-            customer_email='promo@test.com'  # заглушка
-        )
+        promo = PromoCode.objects.filter(code=promo_code, is_active=True).first()
 
-        # Применяем промокод
-        success, message = temp_order.apply_promo_code(promo_code)
+        if not promo:
+            return JsonResponse({'success': False, 'message': 'Промокод не найден или неактивен'})
+
+        # Расчет скидки
+        discount = 0
+        if promo.discount_type == 'percent':
+            discount = total_amount * (promo.discount_value / 100)
+        else:  # fixed
+            discount = min(promo.discount_value, total_amount * 0.9)  # Макс 90%
+
+        final_total = total_amount - discount
+
+        # Сохраняем в сессию для checkout
+        request.session['promo_code'] = promo_code
+        request.session['promo_discount'] = float(discount)
+        request.session['promo_final_total'] = float(final_total)
+        request.session.modified = True
 
         return JsonResponse({
-            'success': success,
-            'message': message,
-            'discount_amount': f'{temp_order.discount_amount:.2f}',
-            'final_total': f'{temp_order.final_total:.2f}'
+            'success': True,
+            'message': f'Промокод "{promo_code}" применен!',
+            'discount_amount': f'{discount:.2f}',
+            'final_total': f'{final_total:.2f}'
         })
 
     except Exception as e:
         return JsonResponse({'success': False, 'message': f'Ошибка: {str(e)}'}, status=500)
 
 
+@login_required
 def checkout(request):
-    """Оформление заказа"""
+    """Оформление заказа """
     cart = _get_cart(request)
     cart_items = []
     total = 0
@@ -199,11 +195,42 @@ def checkout(request):
         except (ValueError, Product.DoesNotExist):
             continue
 
+    if request.method == 'POST':
+
+        order = Order.objects.create(
+            first_name=request.POST.get('first_name'),
+            last_name=request.POST.get('last_name'),
+            email=request.POST.get('email'),
+            phone=request.POST.get('phone', ''),
+            address=request.POST['address'],
+            total_amount=total,
+            session_key=request.session.session_key
+        )
+
+         # ПОСЛЕ СОЗДАНИЯ ORDER - ПРИМЕНЯЕМ ПРОМОКОД
+        promo_code = request.session.get('promo_code')
+        if promo_code:
+            success, message = order.apply_promo_code(promo_code)
+            # Сохраняем сообщение
+            request.session['order_message'] = message
+
+        # Очищаем корзину и промокод
+        request.session['cart'] = {}
+        request.session['promo_code'] = None
+        request.session.modified = True
+
+        # Перенаправляем на страницу заказа
+        return redirect('orders:order_detail', order_id=order.id)
+
+    # GET - показываем форму
+    discount = request.session.get('promo_discount', 0)
+    final_total = request.session.get('promo_final_total', total)
+
     context = {
         'cart_items': cart_items,
         'total': total,
+        'discount': discount,
+        'final_total': final_total,
         'cart_items_count': len(cart_items)
     }
-
     return render(request, 'cart/checkout.html', context)
-
