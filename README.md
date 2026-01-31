@@ -1,7 +1,7 @@
 #  Cosmic Souvenirs 
 ## Космический магазин с промокодами и аналитикой
 
-![Django](https://img.shields.io/badge/Django-5.0-green) 
+![Django](https://img.shields.io/badge/Django-5.2-green) 
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-17-blue) 
 ![Docker](https://img.shields.io/badge/Docker-Compose-orange) 
 ![Python](https://img.shields.io/badge/Python-3.13-yellow)
